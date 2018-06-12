@@ -1,6 +1,7 @@
 # SPINC - Spark In Console
 This is a Cisco Spark chat client for use in console. Written in GO that works in MacOS and Linux.
-(not tested in Windows yet).
+
+<i>(not tested in Windows yet).</i>
 
 This client uses about 15-30MB RAM compared to the official client that uses 500MB - 1000MB RAM.
 However, this client currently only support chats (not file-share, video-chat etc).
@@ -8,6 +9,7 @@ However, this client currently only support chats (not file-share, video-chat et
 ## Screenshots
 ![alt tag](https://raw.github.com/lallassu/spinc/master/theme1.png)
 
+The theme is possible to configure in spinc.theme file.
 ## Use
 If you don't want to build form source. Just download "MacOS/spinc" (Mac) or "Linux/spinc" (Linux).
 
