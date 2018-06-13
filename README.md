@@ -1,11 +1,12 @@
 # SPINC - Spark In Console
-This is a Cisco Spark chat client for use in console. Written in GO that works in MacOS and Linux.
+This is a Cisco Spark (now called WebEx) chat client for use in console. Written in GO that works in MacOS and Linux.
 
 This client uses about 15-30MB RAM compared to the official client that uses 500MB - 1000MB RAM.
 However, this client currently only support chats (not file-share, video-chat etc).
 
 ## Screenshots
-![alt tag](https://raw.github.com/lallassu/spinc/master/theme1.png)
+<img src="./theme1.png" width="500px" height="400px"/>
+<img src="./theme1_2.png" width="500px" height="400px"/>
 
 <i>The theme is possible to configure in spinc.theme file.</i>
 ## Use
@@ -13,6 +14,7 @@ If you don't want to build form source. Just download "MacOS/spinc" (Mac) or "Li
 
 1. Configure "auth_token" in spinc.conf. This token is retrieved by logging in and get authorization token here: https://developer.webex.com/getting-started.html#authentication
 2. ./spinc http://<your_external_ip>
+3. Write /help in Spinc to view available commands and keyboard shortcuts.
 
 If you don't have an external IP. Use a tunnel. If you decide to use ngrok there is a start script provided (spinc.sh). Spinc register webhooks to receive updates
 hence it needs to open up an external port. In case you are behind a firewall you can use any type of tunnel service (or host your own).
@@ -34,8 +36,8 @@ hence it needs to open up an external port. In case you are behind a firewall yo
 
 ## Known Issues
 - Get all users if there are more than 100 in a space.
-- Same space may be in the active list multiple times.
 - Not all colors are possible to configure yet.
+- Copy/paste buffer is very short (10 chars) (https://github.com/gdamore/tcell/issues/200)
 
 ## Todo
 - Logging to file

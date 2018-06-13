@@ -51,7 +51,7 @@ func Help() {
     AddStatusText("[red]=============== Help ================")
     AddStatusText("[blue]/delete|d            [red]- [white]Delete current room (if creator).")
     AddStatusText("[blue]/invite|i <@user>    [red]- [white]Invite user to current room.")
-    AddStatusText("[blue]/join|j <room_name>  [red]- [white]Creates a new chat room.")
+    AddStatusText("[blue]/create|c <room_name>[red]- [white]Creates a new chat room.")
     AddStatusText("[blue]/help|h              [red]- [white]This help text.")
     AddStatusText("[blue]/leave|l             [red]- [white]Leave current chat room.")
     AddStatusText("[blue]/msg|m <@user>       [red]- [white]Send private message to user.")
@@ -110,6 +110,8 @@ func main() {
     // Initial setup of windows
     win.spaces.ShowSecondaryText(false)
     win.spaces.SetBorder(true)
+    win.spaces.SetSelectedBackgroundColor(tcell.ColorBlack)
+    win.spaces.SetSelectedTextColor(tcell.ColorNavy)
     win.spaces.SetTitle("Spaces").SetTitleColor(tcell.ColorNames[theme.SpaceTitle])
     win.spaces.SetDoneFunc(func() {
         win.chat.ScrollToEnd()
@@ -118,10 +120,14 @@ func main() {
     win.users.SetBorder(true).SetTitle("Users")
     win.users.SetTitleColor(tcell.ColorNames[theme.UsersTitle])
     win.users.ShowSecondaryText(false)
+    win.users.SetSelectedBackgroundColor(tcell.ColorBlack)
+    win.users.SetSelectedTextColor(tcell.ColorNavy)
 
     win.private.SetBorder(true).SetTitle("Private")
     win.private.SetTitleColor(tcell.ColorNames[theme.PrivateTitle])
     win.private.ShowSecondaryText(false)
+    win.private.SetSelectedBackgroundColor(tcell.ColorBlack)
+    win.private.SetSelectedTextColor(tcell.ColorNavy)
 
     win.chat.SetBorder(true)
     win.chat.SetTitleAlign(tview.AlignLeft)
@@ -157,17 +163,17 @@ func main() {
                 case "status", "s":
                     ChangeToStatusSpace()
                 case "invite", "i":
-                    InviteUser(words[1:])
+                    go InviteUser(words[1:])
                 case "msg", "m":
-                    MessageUser(words[1:])
-                case "join", "j":
-                    JoinRoom(words[1:])
+                    go MessageUser(words[1:])
+                case "create", "c":
+                    CreateRoom(words[1:])
                 case "me":
-                    WhoisUsers(strings.Fields(user.Info.DisplayName))
+                    go WhoisUsers(strings.Fields(user.Info.DisplayName))
                 case "whois", "w":
-                    WhoisUsers(words[1:])
+                    go WhoisUsers(words[1:])
                 case "delete", "d":
-                    DeleteCurrentSpace()
+                    go DeleteCurrentSpace()
                 default:
                     AddStatusText(fmt.Sprintf("[red]No such command '%s'.", text[1:]))
                 }

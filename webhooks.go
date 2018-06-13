@@ -81,10 +81,13 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
             }
         }
         // Add message to space message list
+        unread_space := ""
         for i,r := range spaces.Items {
             if r.Id == webhook.Data.RoomId {
+                // Update last Activity BEFORE MarkUnread
+                spaces.Items[i].LastActivity = message.Created
                 if r.Id != user.ActiveSpaceId {
-                    MarkSpaceUnread(r.Title)
+                    unread_space = r.Title
                 }
                 if is_mentioned {
                     AddStatusText(fmt.Sprintf("[purple]You were mentioned in channel %s", r.Title))
@@ -92,6 +95,11 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
                 spaces.Items[i].Messages.Items = append(spaces.Items[i].Messages.Items,  message)
                 break
             }
+        }
+        // This is tricky, we need to do this outside of a spaces loop since
+        // markspaceunread will sort spaces, hence index will shift.
+        if unread_space != "" {
+            MarkSpaceUnread(unread_space)
         }
     } else if webhook.Event == "deleted" {
         // Check Room ID

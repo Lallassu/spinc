@@ -1,6 +1,7 @@
 *.log
-spinc
 vendor
+spinc.conf
+./spinc
 test
 TODO
 ngrok

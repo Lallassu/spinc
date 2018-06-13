@@ -1,7 +1,7 @@
 {
     "panels": "white",
     "status_bar": "darkblue",
-    "user_regular": "grey",
+    "user_regular": "white",
     "user_monitor": "orange",
     "user_moderator": "white",
     "moderator_sign": "fuchsia",

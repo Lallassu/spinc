@@ -6,6 +6,7 @@ import (
     "regexp"
     "container/list"
     "strings"
+    "sort"
 )
 
 var status_text = []Status{}
@@ -65,26 +66,36 @@ func SetActiveSpace(name string) {
             space = s
         }
     }
-    // TBD: Check if active is already in list, then just reorder list.
+
+    // Check if it's already in the list, then remove it and it will be
+    // pushed back to front.
+    for e := last_active_spaces.Front(); e != nil; e = e.Next() {
+        if e.Value.(Space).Title == name {
+            last_active_spaces.Remove(e)
+            break
+        }
+    }
 
     last_active_spaces.PushFront(space)
     PrintActiveSpaces()
 }
 
 func PrintActiveSpaces() {
-    i := 0
-    spaces := []string{}
+    active_spaces := []string{}
     for e := last_active_spaces.Front(); e != nil; e = e.Next() {
-        i++
-        if i > 3 {
-            last_active_spaces.Remove(e)
-        } else {
-            spaces = append(spaces, e.Value.(Space).Title)
+        active_spaces = append(active_spaces, e.Value.(Space).Title)
+        if len(active_spaces) > 3 {
+            break
         }
     }
+
     l := []string{}
-    for n := 0; n < len(spaces); n++ {
-        l = append(l, fmt.Sprintf("[aqua]:%v [green]%s", n+1, spaces[n]))
+    // Print max 3 to status bar
+    for n := 0; n < len(active_spaces); n++ {
+        if n == 3 {
+            break
+        }
+        l = append(l, fmt.Sprintf("[aqua]:%v [green]%s", n+1, active_spaces[n]))
     }
     win.status_spaces.SetText(fmt.Sprintf("[navy][[white]Act: %s[navy]]", strings.Join(l, " ")))
 }
@@ -141,14 +152,17 @@ func AddSpace(space string) {
 
 func ClearPrivate() {
     win.private.Clear()
+    win.private.SetTitle(fmt.Sprintf("Private (%d)", win.private.GetItemCount()))
 }
 
 func ClearUsers() {
     win.users.Clear()
+    win.users.SetTitle(fmt.Sprintf("Space Users (%d)", win.users.GetItemCount()))
 }
 
 func ClearSpaces() {
     win.spaces.Clear()
+    win.spaces.SetTitle(fmt.Sprintf("Spaces (%d)", win.spaces.GetItemCount()))
 }
 
 func UserSelection() {
@@ -227,14 +241,64 @@ func AddOwnText(msg, usr, ts string) {
     user.CurrentRows += 1
 }
 
+// Updates space list sorted on LastActivity
+func UpdateSpaceList() {
+    ClearSpaces()
+    sort.Sort(SpaceSorter(spaces.Items))
+    for _,m := range spaces.Items {
+        // Odd stuff!
+        if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
+            continue
+        }
+        if m.Type == "group" {
+            // Check if it's in the active list to mark it unread/green
+            is_active := false
+            for e := last_active_spaces.Front(); e != nil; e = e.Next() {
+                if e.Value.(Space).Title == m.Title {
+                    win.spaces.AddItem(fmt.Sprintf("[white:green]%s", m.Title), "", 0, nil)
+                    is_active = true
+                    break
+                }
+            }
+            if !is_active {
+                AddSpace(m.Title)
+            }
+        }
+    }
+}
+
+func UpdatePrivateList() {
+    ClearPrivate()
+    sort.Sort(SpaceSorter(spaces.Items))
+    for _,m := range spaces.Items {
+        // Odd stuff!
+        if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
+            continue
+        }
+        if m.Type == "direct" {
+            is_active := false
+            for e := last_active_spaces.Front(); e != nil; e = e.Next() {
+                if e.Value.(Space).Title == m.Title {
+                    win.private.AddItem(fmt.Sprintf("[white:green]%s", m.Title), "", 0, nil)
+                    is_active = true
+                    break
+                }
+            }
+            if !is_active {
+                AddPrivate(m.Title)
+            }
+        }
+    }
+}
+
 func MarkSpaceUnread(space string) {
     // Check for spaces
     for i := 0; i < win.spaces.GetItemCount(); i++ {
         txt,_ := win.spaces.GetItemText(i)
         txt = CleanString(txt)
         if txt == space {
-            win.spaces.SetItemText(i, fmt.Sprintf("[white:green]%s",space), "")
             SetActiveSpace(space)
+            UpdateSpaceList()
             return
         }
     }
@@ -243,8 +307,8 @@ func MarkSpaceUnread(space string) {
         txt,_ := win.private.GetItemText(i)
         txt = CleanString(txt)
         if txt == space {
-            win.private.SetItemText(i, fmt.Sprintf("[white:green]%s",space), "")
             SetActiveSpace(space)
+            UpdatePrivateList()
             return
         }
     }

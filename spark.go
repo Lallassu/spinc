@@ -146,7 +146,7 @@ func LeaveCurrentRoom() {
     json.Unmarshal(f, &memberships)
     for _,m := range memberships.Items {
         if m.PersonId == user.Info.Id && m.RoomId == user.ActiveSpaceId {
-            Request("DELETE", fmt.Sprintf("/memberships/%s", m.Id), nil)
+            go Request("DELETE", fmt.Sprintf("/memberships/%s", m.Id), nil)
             break
         }
     }
@@ -195,20 +195,21 @@ func MessageUser(usr []string) {
     Request("POST", "/messages", data)
 }
 
-func JoinRoom(name []string) {
+func CreateRoom(name []string) {
     room_name := strings.Join(name, " ")
-    AddStatusText(fmt.Sprintf("Creating room %s...please wait.", room_name))
+    AddStatusText(fmt.Sprintf("Creating room %s...", room_name))
     go func() {
         data := map[string]interface{} {"title": room_name}
         Request("POST", "/rooms", data)
 
         // It takes a while to create a room so wait a bit before updating spaces.
+        // TBD: Check if this can be handled by a created room event.
         time.Sleep(2*time.Second)
         GetAllSpaces()
         AddStatusText(fmt.Sprintf("Created room %s", room_name))
 
-        ClearChat()
-        ChangeSpace(room_name)
+        //ClearChat()
+        //ChangeSpace(room_name)
     }()
 }
 
