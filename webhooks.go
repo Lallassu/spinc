@@ -132,6 +132,8 @@ func HandleMemberShipEvent(w http.ResponseWriter, r *http.Request) {
     webhook := WebHook{}
     json.NewDecoder(r.Body).Decode(&webhook)
 
+    // TBD: Handle newly created rooms!
+
     for _, s := range spaces.Items {
         if s.Id == webhook.Data.RoomId {
             if webhook.Event == "created" {
@@ -152,9 +154,14 @@ func HandleMemberShipEvent(w http.ResponseWriter, r *http.Request) {
                     }
                 }
             }
-            break
+            return
         }
     }
+
+    // Might be a invite or newly created room that didn't exist before.
+    AddStatusText("New room invite/creation.")
+    GetAllSpaces()
+
 }
 
 func HandleRoomEvent(w http.ResponseWriter, r *http.Request) {

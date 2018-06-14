@@ -33,6 +33,7 @@ type Theme struct {
     UserRegular string `json:"user_regular"`
     UserModerator string `json:"user_moderator"`
     UserMonitor string `json:"user_monitor"`
+    UserBot string `json:"user_bot"`
     Spaces string `json:"spaces"`
     OwnText string `json:"own_text"`
     UserText string `json:"user_text"`

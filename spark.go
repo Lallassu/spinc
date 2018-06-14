@@ -91,7 +91,12 @@ func ChangeSpace(space string) {
                 } else if u.IsMonitor {
                     monitor = append(monitor, fmt.Sprintf("[%s]+[%s]%s", theme.MonitorSign, theme.UserMonitor, u.PersonDisplayName))
                 } else {
-                    users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
+                    //Check if it's a bot.
+                    if strings.Contains(u.PersonEmail, "sparkbot.io") {
+                        users = append(users, fmt.Sprintf("[%s][BOT[]%s", theme.UserBot, u.PersonDisplayName))
+                    } else {
+                        users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
+                    }
                 }
             }
             for _,o := range ops {

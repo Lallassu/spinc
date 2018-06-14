@@ -4,6 +4,7 @@
     "user_regular": "white",
     "user_monitor": "orange",
     "user_moderator": "white",
+    "user_bot": "orange",
     "moderator_sign": "fuchsia",
     "monitor_sign": "orange",
     "spaces": "white",
