@@ -195,11 +195,11 @@ func SpaceSelection() {
 }
 
 func SetInputLabelSpace(space string) {
-    win.input.SetLabel(fmt.Sprintf("[%s][#%s]] ", theme.InputLabel, space))
+    win.input.SetLabel(fmt.Sprintf("[%s][#%s] ", theme.InputLabel, space))
 }
 
 func SetInputLabelUser(space string) {
-    win.input.SetLabel(fmt.Sprintf("[%s][@%s]] ", theme.InputLabel, space))
+    win.input.SetLabel(fmt.Sprintf("[%s][@%s] ", theme.InputLabel, space))
 }
 
 func ClearChat() {

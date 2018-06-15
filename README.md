@@ -25,6 +25,9 @@ hence it needs to open up an external port. In case you are behind a firewall yo
 * https://github.com/fatedier/frp
 * https://localhost.run
 
+### Paste in Linux
+Linux, Unix (requires 'xclip' or 'xsel' command to be installed) in order to use "Ctrl-V" to paste text into input field.
+
 ## Configuration
 - It's possible to configure which port to use for webhook callbacks. Default is 2601.
 - Keyboard shortcuts are possible to configure in spinc.sh
@@ -37,7 +40,6 @@ hence it needs to open up an external port. In case you are behind a firewall yo
 ## Known Issues
 - Get all users if there are more than 100 in a space.
 - Not all colors are possible to configure yet.
-- Copy/paste buffer is very short (10 chars) (https://github.com/gdamore/tcell/issues/200)
 
 ## Todo
 - Logging to file

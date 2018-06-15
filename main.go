@@ -9,6 +9,7 @@ import (
     "strings"
     "log"
     "io/ioutil"
+    "github.com/atotto/clipboard"
 )
 
 var version = "0.1"
@@ -222,6 +223,9 @@ func main() {
         keyName := event.Name()
         if event.Key() == tcell.KeyCtrlS {
             win.app.SetFocus(win.spaces)
+        } else if keyName == config.KeyPaste {
+            text,_ := clipboard.ReadAll()
+            win.input.SetText(text)
         } else if keyName == config.KeySelectCurrentUsers {
             win.app.SetFocus(win.users)
         } else if keyName == config.KeyShowLastActivity {

@@ -35,11 +35,24 @@ func UpdateStatusTime() {
 // Check and update latency
 func UpdateStatusLag() {
     win.status_lag.SetText(fmt.Sprintf("[navy][[white]Lag: %v[navy]]", "-"))
+    count := 0
     for  {
         conn, err := net.DialTimeout("tcp", "api.ciscospark.com:80", 10 * time.Second)
         if err != nil {
+            if count % 120 == 0 {
+                AddStatusText(fmt.Sprintf("[red]Connection seems to be lost: %v seconds.", count*10))
+            }
+            time.Sleep(10000 * time.Millisecond)
+            count++
             continue
         }
+        // If success, check if we have been down and if so, perform an update.
+        if count > 2 {
+            AddStatusText(fmt.Sprintf("%v seconds since last successful connection, performing update of all spaces.", count*10))
+            GetAllSpaces()
+            count = 0
+        }
+
         defer conn.Close()
         conn.Write([]byte("GET / HTTP/1.0\r\n\r\n"))
 

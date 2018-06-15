@@ -23,6 +23,7 @@ type Config struct {
     KeyClearChatWindow string `json:"key_clear_chat_window"`
     KeyFocusWindows string `json:"key_focus_windows"`
     KeySelectInput string `json:"key_select_input"`
+    KeyPaste string `json:"key_paste"`
 }
 
 // Theme 
