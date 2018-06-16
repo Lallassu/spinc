@@ -40,9 +40,9 @@ func UpdateStatusLag() {
         conn, err := net.DialTimeout("tcp", "api.ciscospark.com:80", 10 * time.Second)
         if err != nil {
             if count % 120 == 0 {
-                AddStatusText(fmt.Sprintf("[red]Connection seems to be lost: %v seconds.", count*10))
+                AddStatusText("[red]Connection seems to be lost. Retrying every 10 seconds.")
             }
-            time.Sleep(10000 * time.Millisecond)
+            time.Sleep(1000 * time.Millisecond)
             count++
             continue
         }

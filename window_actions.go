@@ -111,6 +111,7 @@ func UpdateStatusOwnStatus(status string) {
     }
 }
 
+// Status space is the "/s" virtual space.
 func ChangeToStatusSpace() {
     ClearUsers()
     ClearChat()
@@ -180,8 +181,8 @@ func PrivateSelection() {
     user = CleanString(user)
 
     AddStatusText(fmt.Sprintf("Changed to private chat with [navy]%v", user))
-    UpdateStatusPrivate(user)
     ChangeSpace(user)
+    UpdateStatusPrivate(user)
 }
 
 func SpaceSelection() {

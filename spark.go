@@ -93,7 +93,7 @@ func ChangeSpace(space string) {
                 } else {
                     //Check if it's a bot.
                     if strings.Contains(u.PersonEmail, "sparkbot.io") {
-                        users = append(users, fmt.Sprintf("[%s][BOT[]%s", theme.UserBot, u.PersonDisplayName))
+                        users = append(users, fmt.Sprintf("[%s][BOT[] %s", theme.UserBot, u.PersonDisplayName))
                     } else {
                         users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
                     }
@@ -142,6 +142,9 @@ func GetAllSpaces() {
         }
         go GetMessagesForSpace(m.Id)
         go GetMembersOfSpace(m.Id)
+        if user.ActiveSpaceId == m.Id {
+            ChangeSpace(m.Title)
+        }
     }
 }
 

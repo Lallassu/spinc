@@ -70,6 +70,7 @@ func Help() {
     AddStatusText(fmt.Sprintf("[blue]%s\t      [red]- [white]Scroll to chat end.", config.KeyScrollChatEnd))
     AddStatusText(fmt.Sprintf("[blue]%s\t      [red]- [white]Shift focus.", config.KeyFocusWindows))
     AddStatusText(fmt.Sprintf("[blue]%s\t      [red]- [white]Focus on input box.", config.KeySelectInput))
+    AddStatusText(fmt.Sprintf("[blue]%s\t      [red]- [white]Paste from clipboard.", config.KeyPaste))
 }
 
 func Quit() {

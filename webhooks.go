@@ -66,8 +66,8 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
                         for _,u := range s.Members.Items {
                             if u.Id == message.PersonId {
                                 name = u.PersonDisplayName
+                                break
                             }
-                            break
                         }
                         break
                     }
