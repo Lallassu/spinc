@@ -24,6 +24,7 @@ type Config struct {
 	KeyFocusWindows        string `json:"key_focus_windows"`
 	KeySelectInput         string `json:"key_select_input"`
 	KeyPaste               string `json:"key_paste"`
+	ThemeFile              string `json:"theme_file"`
 }
 
 // Theme
