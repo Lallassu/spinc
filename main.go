@@ -18,6 +18,7 @@ var version = "0.1"
 var config = Config{}
 var theme = Theme{}
 var flagConfigFile = flag.String("cfg", "spinc.conf", "Specify configuration file")
+var flagListenHost = flag.String("s", "", "http://host:port for webhooks.")
 var flagVersion = flag.Bool("v", false, "Output spinc version and exit")
 
 type windows struct {
@@ -91,7 +92,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if len(flag.Args()) != 1 {
+	if *flagListenHost == "" {
 		fmt.Println("Usage: ./spinc <external ip or host>>")
 		fmt.Println("\t Example: ./spinc http://213.180.10.11")
 		fmt.Println("\t External IP or host is the same IP for the host where spinc is executed. ")
@@ -394,7 +395,9 @@ func main() {
 	// Load user locale
 	user.Locale, _ = time.LoadLocation(config.TimeZone)
 
-	user.GrokUrl = strings.TrimRight(flag.Args()[0], "/")
+	fmt.Printf(fmt.Sprintf("USING URL: %v", *flagListenHost))
+
+	user.GrokUrl = strings.TrimRight(*flagListenHost, "/")
 
 	go RegisterWebHooks()
 
