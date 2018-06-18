@@ -1,20 +1,24 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"github.com/atotto/clipboard"
-	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/atotto/clipboard"
+	"github.com/gdamore/tcell"
+	"github.com/rivo/tview"
 )
 
 var version = "0.1"
 var config = Config{}
 var theme = Theme{}
+var flagConfigFile = flag.String("cfg", "spinc.conf", "Specify configuration file")
+var flagVersion = flag.Bool("v", false, "Output spinc version and exit")
 
 type windows struct {
 	status_time      *tview.TableCell
@@ -80,7 +84,14 @@ func Quit() {
 }
 
 func main() {
-	if len(os.Args) != 2 {
+	flag.Parse()
+
+	if *flagVersion {
+		fmt.Printf("Spinc v%s\n", version)
+		os.Exit(0)
+	}
+
+	if len(flag.Args()) != 1 {
 		fmt.Println("Usage: ./spinc <external ip or host>>")
 		fmt.Println("\t Example: ./spinc http://213.180.10.11")
 		fmt.Println("\t External IP or host is the same IP for the host where spinc is executed. ")
@@ -92,8 +103,8 @@ func main() {
 	}
 
 	// Read configuration and theme files
-	config = LoadConfiguration("spinc.conf")
-	theme = LoadTheme("spinc.theme")
+	config = LoadConfiguration(*flagConfigFile)
+	theme = LoadTheme(config.ThemeFile)
 
 	// Create a focus chain
 	fc := []interface{}{
@@ -383,7 +394,7 @@ func main() {
 	// Load user locale
 	user.Locale, _ = time.LoadLocation(config.TimeZone)
 
-	user.GrokUrl = strings.TrimRight(os.Args[1], "/")
+	user.GrokUrl = strings.TrimRight(flag.Args()[0], "/")
 
 	go RegisterWebHooks()
 
@@ -398,6 +409,7 @@ func main() {
 	AddStatusText("  [red]https://github.com/lallassu/spinc")
 	ChangeToStatusSpace()
 
+	AddStatusText(fmt.Sprintf("Theme used: %s", config.ThemeFile))
 	AddStatusText(fmt.Sprintf("Webhook url used: %s", user.GrokUrl))
 
 	if err := win.app.SetRoot(flex, true).SetFocus(win.input).Run(); err != nil {
