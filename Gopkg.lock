@@ -23,10 +23,28 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/gen2brain/beeep"
+  packages = ["."]
+  revision = "b98497f37c8014f7d68280c2969a47a7af3cf28d"
+
+[[projects]]
   name = "github.com/go-resty/resty"
   packages = ["."]
   revision = "fc3ad735b5565cada42d34bc298573fd3fe5adc6"
   version = "v1.6"
+
+[[projects]]
+  name = "github.com/godbus/dbus"
+  packages = ["."]
+  revision = "a389bdde4dd695d414e47b755e95e72b7826432c"
+  version = "v4.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gopherjs/gopherjs"
+  packages = ["js"]
+  revision = "8dffc02ea1cb8398bb73f30424697c60fcf8d4c5"
 
 [[projects]]
   name = "github.com/lucasb-eyer/go-colorful"
@@ -42,6 +60,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/nu7hatch/gouuid"
+  packages = ["."]
+  revision = "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
+
+[[projects]]
+  branch = "master"
   name = "github.com/rivo/tview"
   packages = ["."]
   revision = "6ffb56ee2a2419f190043ff60003656530a9f0e2"
@@ -54,6 +78,15 @@
     "publicsuffix"
   ]
   revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "windows",
+    "windows/registry"
+  ]
+  revision = "6c888cc515d3ed83fc103cf1d84468aad274b0a7"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -78,9 +111,15 @@
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
+[[projects]]
+  branch = "v1"
+  name = "gopkg.in/toast.v1"
+  packages = ["."]
+  revision = "b700e246b8b6d3e13554091e540e1019e26389f1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "00fc420146c8c043d89363e06caccd8974034dc05154a23cc63add0cd2271181"
+  inputs-digest = "257e470cede00b5a4084490f3fa599f6d17a7cd46b28bf5d9be0edf08a626f78"
   solver-name = "gps-cdcl"
   solver-version = 1

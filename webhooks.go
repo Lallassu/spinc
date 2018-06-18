@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gen2brain/beeep"
 	"net/http"
 )
 
@@ -88,6 +89,11 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
 				spaces.Items[i].LastActivity = message.Created
 				if r.Id != user.ActiveSpaceId {
 					unread_space = r.Title
+					// If not active space, show a alert if configured.
+					// TBD: Will not show logo in MacOS without bundle.app layout
+					if config.ShowAlerts {
+						beeep.Notify(fmt.Sprintf("Spinc - %v", r.Title), message.Text, "logo.png")
+					}
 				}
 				if is_mentioned {
 					AddStatusText(fmt.Sprintf("[purple]You were mentioned in channel %s", r.Title))

@@ -25,6 +25,7 @@ type Config struct {
 	KeySelectInput         string `json:"key_select_input"`
 	KeyPaste               string `json:"key_paste"`
 	ThemeFile              string `json:"theme_file"`
+	ShowAlerts             bool   `json:"show_alerts"`
 }
 
 // Theme
