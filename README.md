@@ -35,6 +35,7 @@ Linux, Unix (requires 'xclip' or 'xsel' command to be installed) in order to use
 
 ## Themes
 - Default theme is a irssi look. Themes are read from "spinc.theme" file.
+- Theme file is configured in spinc.conf
 - Available colors: https://github.com/gdamore/tcell/blob/master/color.go (and pretty much all hexadecimal colors)
 
 ## Known Issues
