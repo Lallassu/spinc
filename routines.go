@@ -38,7 +38,7 @@ func UpdateStatusLag() {
 	for {
 		conn, err := net.DialTimeout("tcp", "api.ciscospark.com:80", 10*time.Second)
 		if err != nil {
-			if count%120 == 0 {
+			if (count%120 == 0 || count == 2) && count != 0 {
 				AddStatusText("[red]Connection seems to be lost. Retrying every 10 seconds.")
 			}
 			time.Sleep(1000 * time.Millisecond)
@@ -47,8 +47,11 @@ func UpdateStatusLag() {
 		}
 		// If success, check if we have been down and if so, perform an update.
 		if count > 2 {
-			AddStatusText(fmt.Sprintf("%v seconds since last successful connection, performing update of all spaces.", count*10))
+			AddStatusText(fmt.Sprintf("%v seconds since last successful connection, performing update of all spaces.", count))
 			GetAllSpaces()
+			// since we reset everything, show status space to not become missynced
+			// with current channel.
+			ChangeSpace("status")
 			count = 0
 		}
 

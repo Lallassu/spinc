@@ -65,7 +65,7 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
 				for _, s := range spaces.Items {
 					if s.Id == webhook.Data.RoomId {
 						for _, u := range s.Members.Items {
-							if u.Id == message.PersonId {
+							if u.PersonId == message.PersonId {
 								name = u.PersonDisplayName
 								break
 							}
@@ -97,6 +97,9 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
 				}
 				if is_mentioned {
 					AddStatusText(fmt.Sprintf("[purple]You were mentioned in channel %s", r.Title))
+					if config.ShowAlerts {
+						beeep.Notify(fmt.Sprintf("Spinc - %v", r.Title), "Someone mentioned your name!", "logo.png")
+					}
 				}
 				spaces.Items[i].Messages.Items = append(spaces.Items[i].Messages.Items, message)
 				break

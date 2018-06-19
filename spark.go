@@ -132,9 +132,11 @@ func GetAllSpaces() {
 	ClearSpaces()
 	sort.Sort(SpaceSorter(spaces.Items))
 	for _, m := range spaces.Items {
-		if m.Title == "Empty Title" {
-			continue
-		}
+		// Empty title groups may be with people that has been removed.
+		// Might still want to view messages for these spaces.
+		//if m.Title == "Empty Title" {
+		////	continue
+		//}
 		if m.Type == "direct" {
 			AddPrivate(m.Title)
 		} else if m.Type == "group" {

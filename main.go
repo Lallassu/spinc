@@ -395,8 +395,6 @@ func main() {
 	// Load user locale
 	user.Locale, _ = time.LoadLocation(config.TimeZone)
 
-	fmt.Printf(fmt.Sprintf("USING URL: %v", *flagListenHost))
-
 	user.GrokUrl = strings.TrimRight(*flagListenHost, "/")
 
 	go RegisterWebHooks()

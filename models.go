@@ -78,7 +78,8 @@ type Persons struct {
 }
 
 type Members struct {
-	Items []Member `json:"items"`
+	Items   []Member `json:"items"`
+	Headers []string `json:"headers"`
 }
 
 type Member struct {
