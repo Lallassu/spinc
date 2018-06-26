@@ -71,10 +71,10 @@ func GetMembersOfSpace(space_id string) {
 	}
 
 	space := maps.SpaceIdToSpace[space_id]
-    space.Members.Items = members
+	space.Members.Items = members
 	if user.ActiveSpaceId == space_id {
 		ChangeSpace(space.Title)
-    }
+	}
 }
 
 func ChangeSpace(space string) {
@@ -131,15 +131,15 @@ func DeleteCurrentSpace() {
 
 func GetAllSpaces() {
 	f, _ := Request("GET", "/rooms", nil)
-    spaces = Spaces{}
+	spaces = Spaces{}
 	json.Unmarshal(f, &spaces)
 	ClearPrivate()
 	ClearSpaces()
 	sort.Sort(SpaceSorter(spaces.Items))
 	count := 0
-    // Clear maps
-    maps.SpaceIdToSpace = make(map[string]*Space)
-    maps.SpaceTitleToSpace = make(map[string]*Space)
+	// Clear maps
+	maps.SpaceIdToSpace = make(map[string]*Space)
+	maps.SpaceTitleToSpace = make(map[string]*Space)
 	for i, m := range spaces.Items {
 		// Perform some mapping for faster lookup
 		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
@@ -147,8 +147,8 @@ func GetAllSpaces() {
 			m.Title = fmt.Sprintf("%v (%v)", m.Title, count)
 			maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
 		} else {
-            maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
-        }
+			maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
+		}
 		maps.SpaceIdToSpace[m.Id] = &spaces.Items[i]
 
 		if m.Type == "direct" {
