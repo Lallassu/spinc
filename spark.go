@@ -17,61 +17,67 @@ var user = User{
 
 var spaces = Spaces{}
 
-func GetMessagesForSpace(space_id string) {
-	f := Request("GET", fmt.Sprintf("/messages?roomId=%s", space_id), nil)
-
-	// Find space and add messages
-	for i, s := range spaces.Items {
-		if s.Id == space_id {
-			json.Unmarshal(f, &spaces.Items[i].Messages)
-			break
-		}
-	}
+func GetMeInfo() {
+	f, _ := Request("GET", "/people/me", nil)
+	json.Unmarshal(f, &user.Info)
+	UpdateStatusName(user.Info.DisplayName)
+	UpdateStatusOwnStatus(user.Info.Status)
 }
 
-func ShowMessages(space string) {
-	for i, s := range spaces.Items {
-		if s.Title == space {
-			// Fetch members if not already done so...
-			if len(spaces.Items[i].Members.Items) == 0 {
-				GetMembersOfSpace(s.Id)
-			}
-			// Get messages if not already done.
-			if len(spaces.Items[i].Messages.Items) == 0 {
-				GetMessagesForSpace(s.Id)
-			}
-			sort.Sort(MessageSorter(spaces.Items[i].Messages.Items))
-			for _, m := range spaces.Items[i].Messages.Items {
-				if m.PersonId == user.Info.Id {
-					AddOwnText(m.Text, user.Info.DisplayName, m.Created)
-				} else {
-					// Messages doesn't include DisplayNames, so find it in members.
-					found := false
-					for _, u := range spaces.Items[i].Members.Items {
-						if strings.ToLower(u.PersonEmail) == strings.ToLower(m.PersonEmail) {
-							AddUserText(m.Text, u.PersonDisplayName, m.Created)
-							found = true
-							break
-						}
-					}
-					if !found {
-						AddUserText(m.Text, m.PersonEmail, m.Created)
-					}
+func GetMessagesForSpace(space_id string) {
+	f, _ := Request("GET", fmt.Sprintf("/messages?roomId=%s", space_id), nil)
+	space := maps.SpaceIdToSpace[space_id]
+	json.Unmarshal(f, &space.Messages)
+	sort.Sort(MessageSorter(space.Messages.Items))
+}
+
+func ShowMessages(space_title string) {
+	space := maps.SpaceTitleToSpace[space_title]
+	for _, m := range space.Messages.Items {
+		if m.PersonId == user.Info.Id {
+			AddOwnText(m.Text, user.Info.DisplayName, m.Created)
+		} else {
+			// Messages doesn't include DisplayNames, so find it in members.
+			found := false
+			for _, u := range space.Members.Items {
+				if strings.ToLower(u.PersonEmail) == strings.ToLower(m.PersonEmail) {
+					AddUserText(m.Text, u.PersonDisplayName, m.Created)
+					found = true
+					break
 				}
 			}
-			break
+			if !found {
+				AddUserText(m.Text, m.PersonEmail, m.Created)
+			}
 		}
 	}
 }
 
 func GetMembersOfSpace(space_id string) {
-	f := Request("GET", fmt.Sprintf("/memberships?roomId=%s", space_id), nil)
-
-	for i, s := range spaces.Items {
-		if s.Id == space_id {
-			json.Unmarshal(f, &spaces.Items[i].Members)
-			break
+	members := []Member{}
+	link := "_"
+	req := fmt.Sprintf("/memberships?roomId=%s", space_id)
+	for link != "" {
+		f := []byte{}
+		f, link = Request("GET", req, nil)
+		m := Members{}
+		json.Unmarshal(f, &m)
+		for _, item := range m.Items {
+			members = append(members, item)
 		}
+		if link != "" {
+			req = strings.TrimPrefix(link, config.ApiUrl)
+		}
+	}
+
+	space := maps.SpaceIdToSpace[space_id]
+	for i, m := range members {
+		space.Members.Items = append(space.Members.Items, m)
+		maps.MemberNameToMember[m.PersonDisplayName] = &space.Members.Items[i]
+		maps.MemberIdToMember[m.PersonId] = &space.Members.Items[i]
+	}
+	if user.ActiveSpaceId == space_id {
+		ChangeSpace(space.Title)
 	}
 }
 
@@ -79,38 +85,41 @@ func ChangeSpace(space string) {
 	SetInputLabelSpace(space)
 	ClearUsers()
 	UpdateStatusSpace(space)
-	for i, s := range spaces.Items {
-		if s.Title == space {
-			user.ActiveSpaceId = s.Id
-			var ops []string
-			var monitor []string
-			var users []string
-			for _, u := range spaces.Items[i].Members.Items {
-				if u.IsModerator {
-					ops = append(ops, fmt.Sprintf("[%s]@[%s]%s", theme.ModeratorSign, theme.UserModerator, u.PersonDisplayName))
-				} else if u.IsMonitor {
-					monitor = append(monitor, fmt.Sprintf("[%s]+[%s]%s", theme.MonitorSign, theme.UserMonitor, u.PersonDisplayName))
+
+	s := maps.SpaceTitleToSpace[space]
+	user.ActiveSpaceId = s.Id
+	var ops []string
+	var monitor []string
+	var users []string
+	if len(s.Members.Items) == 0 {
+		AddUser("[red]Loading...")
+	} else {
+		for _, u := range s.Members.Items {
+			if u.IsModerator {
+				ops = append(ops, fmt.Sprintf("[%s]@[%s]%s", theme.ModeratorSign, theme.UserModerator, u.PersonDisplayName))
+			} else if u.IsMonitor {
+				monitor = append(monitor, fmt.Sprintf("[%s]+[%s]%s", theme.MonitorSign, theme.UserMonitor, u.PersonDisplayName))
+			} else {
+				//Check if it's a bot.
+				if strings.Contains(u.PersonEmail, "sparkbot.io") {
+					users = append(users, fmt.Sprintf("[%s][BOT[] %s", theme.UserBot, u.PersonDisplayName))
 				} else {
-					//Check if it's a bot.
-					if strings.Contains(u.PersonEmail, "sparkbot.io") {
-						users = append(users, fmt.Sprintf("[%s][BOT[] %s", theme.UserBot, u.PersonDisplayName))
-					} else {
-						users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
-					}
+					users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
 				}
 			}
-			for _, o := range ops {
-				AddUser(o)
-			}
-			for _, o := range monitor {
-				AddUser(o)
-			}
-			for _, o := range users {
-				AddUser(o)
-			}
-			break
+		}
+		for _, o := range ops {
+			AddUser(o)
+		}
+		for _, o := range monitor {
+			AddUser(o)
+		}
+		for _, o := range users {
+			AddUser(o)
 		}
 	}
+
+	MarkActiveSpaceRead(space)
 	MarkSpaceRead(space)
 	ShowMessages(space)
 }
@@ -125,13 +134,21 @@ func DeleteCurrentSpace() {
 }
 
 func GetAllSpaces() {
-	f := Request("GET", "/rooms", nil)
-
+	f, _ := Request("GET", "/rooms", nil)
 	json.Unmarshal(f, &spaces)
 	ClearPrivate()
 	ClearSpaces()
 	sort.Sort(SpaceSorter(spaces.Items))
-	for _, m := range spaces.Items {
+	count := 0
+	for i, m := range spaces.Items {
+		// Perform some mapping for faster lookup
+		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
+			count++
+			m.Title = fmt.Sprintf("%v (%v)", m.Title, count)
+			maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
+		}
+		maps.SpaceIdToSpace[m.Id] = &spaces.Items[i]
+		maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
 		// Empty title groups may be with people that has been removed.
 		// Might still want to view messages for these spaces.
 		//if m.Title == "Empty Title" {
@@ -142,8 +159,10 @@ func GetAllSpaces() {
 		} else if m.Type == "group" {
 			AddSpace(m.Title)
 		}
-		go GetMessagesForSpace(m.Id)
-		go GetMembersOfSpace(m.Id)
+
+		channels.Messages <- m.Id
+		channels.Members <- m.Id
+
 		if user.ActiveSpaceId == m.Id {
 			ChangeSpace(m.Title)
 		}
@@ -152,7 +171,7 @@ func GetAllSpaces() {
 
 func LeaveCurrentRoom() {
 	var memberships Memberships
-	f := Request("GET", "/memberships", nil)
+	f, _ := Request("GET", "/memberships", nil)
 	json.Unmarshal(f, &memberships)
 	for _, m := range memberships.Items {
 		if m.PersonId == user.Info.Id && m.RoomId == user.ActiveSpaceId {
@@ -181,18 +200,7 @@ func MessageUser(usr []string) {
 	name := str[posFirstAdjusted:posLast]
 
 	// Get person Id
-	person_id := ""
-	for _, s := range spaces.Items {
-		for _, m := range s.Members.Items {
-			if m.PersonDisplayName == name {
-				person_id = m.PersonId
-				break
-			}
-		}
-		if person_id != "" {
-			break
-		}
-	}
+	person_id := maps.MemberNameToMember[name].PersonId
 
 	if person_id == "" {
 		AddStatusText(fmt.Sprintf("[red]Did not find any user ID for '%s'", name))
@@ -205,25 +213,25 @@ func MessageUser(usr []string) {
 	Request("POST", "/messages", data)
 }
 
+// TBD: To worker
 func CreateRoom(name []string) {
 	room_name := strings.Join(name, " ")
 	AddStatusText(fmt.Sprintf("Creating room %s...", room_name))
-	go func() {
-		data := map[string]interface{}{"title": room_name}
-		Request("POST", "/rooms", data)
+	data := map[string]interface{}{"title": room_name}
+	Request("POST", "/rooms", data)
 
-		// It takes a while to create a room so wait a bit before updating spaces.
-		// TBD: Check if this can be handled by a created room event.
-		time.Sleep(2 * time.Second)
-		GetAllSpaces()
-		AddStatusText(fmt.Sprintf("Created room %s", room_name))
+	// It takes a while to create a room so wait a bit before updating spaces.
+	// TBD: Check if this can be handled by a created room event.
+	time.Sleep(3 * time.Second)
+	GetAllSpaces()
+	AddStatusText(fmt.Sprintf("Created room %s", room_name))
 
-		//ClearChat()
-		//ChangeSpace(room_name)
-	}()
+	//ClearChat()
+	//ChangeSpace(room_name)
 }
 
 // Invite to current room
+// TBD: To worker
 func InviteUser(usr []string) {
 	data := map[string]interface{}{
 		"roomId":   user.ActiveSpaceId,
@@ -236,11 +244,12 @@ func InviteUser(usr []string) {
 }
 
 // Search for users by name or email
+// TBD: To worker!
 func WhoisUsers(usr []string) {
 	name := strings.Join(usr, "%20")
 	AddStatusText(fmt.Sprintf("Searching for user: %v", strings.Join(usr, " ")))
 	var persons Persons
-	f := Request("GET", fmt.Sprintf("/people?displayName=%s", name), nil)
+	f, _ := Request("GET", fmt.Sprintf("/people?displayName=%s", name), nil)
 	json.Unmarshal(f, &persons)
 	for i, p := range persons.Items {
 		status_color := "red"
@@ -279,7 +288,7 @@ func UpdateOrCreateWebHook(name string, data map[string]interface{}, webhooks We
 
 func DeleteAllWebHooks() {
 	webhooks := WebHooks{}
-	f := Request("GET", "/webhooks", nil)
+	f, _ := Request("GET", "/webhooks", nil)
 	json.Unmarshal(f, &webhooks)
 	for _, w := range webhooks.Items {
 		Request("DELETE", fmt.Sprintf("/webhooks/%s", w.Id), nil)
@@ -289,7 +298,7 @@ func DeleteAllWebHooks() {
 func RegisterWebHooks() {
 	// Get all webhooks
 	webhooks := WebHooks{}
-	f := Request("GET", "/webhooks", nil)
+	f, _ := Request("GET", "/webhooks", nil)
 	json.Unmarshal(f, &webhooks)
 
 	// Memberships created
@@ -356,16 +365,27 @@ func RegisterWebHooks() {
 	UpdateOrCreateWebHook("spinc_roomu", data, webhooks)
 }
 
-func Request(method string, path string, data map[string]interface{}) []byte {
+func Request(method string, path string, data map[string]interface{}) ([]byte, string) {
 	r := resty.R().
 		SetHeader("Accept", "application/json").
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", user.Token))
 	resty.SetTimeout(10 * time.Second)
 	resty.SetCloseConnection(true)
 
+	link := ""
+
 	resp := &resty.Response{}
 	if method == "GET" {
 		resp, _ = r.Get(fmt.Sprintf("%v/%v", config.ApiUrl, path))
+		header := resp.Header()
+		if header["Link"] != nil {
+			if strings.Contains(header["Link"][0], "next") {
+				str := strings.Join(header["Link"], " ")
+				posFirst := strings.Index(str, "<")
+				posLast := strings.Index(str, ">")
+				link = str[posFirst+1 : posLast]
+			}
+		}
 	} else if method == "DELETE" {
 		resp, _ = r.Delete(fmt.Sprintf("%v/%v", config.ApiUrl, path))
 	} else if method == "POST" {
@@ -383,5 +403,6 @@ func Request(method string, path string, data map[string]interface{}) []byte {
 			AddStatusText("[red]Auth token may be expired. Get new token here: [white]https://developer.webex.com/getting-started.html#authentication")
 		}
 	}
-	return []byte(resp.Body())
+
+	return []byte(resp.Body()), link
 }

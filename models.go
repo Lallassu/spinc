@@ -1,8 +1,44 @@
 package main
 
 import (
+	"github.com/rivo/tview"
 	"time"
 )
+
+type Maps struct {
+	SpaceIdToSpace     map[string]*Space
+	SpaceTitleToSpace  map[string]*Space
+	MemberNameToMember map[string]*Member
+	MemberIdToMember   map[string]*Member
+}
+
+type Channels struct {
+	Quit       chan int
+	CreateRoom chan []string
+	Members    chan string
+	Messages   chan string
+	Whois      chan []string
+	WhMessage  chan WebHook
+	WhMember   chan WebHook
+	WhRoom     chan WebHook
+	workers    int
+}
+
+type Windows struct {
+	StatusTime      *tview.TableCell
+	StatusName      *tview.TableCell
+	StatusSpace     *tview.TableCell
+	StatusLag       *tview.TableCell
+	StatusOwnStatus *tview.TableCell
+	StatusSpaces    *tview.TableCell
+	Status          *tview.Table
+	Spaces          *tview.List
+	Users           *tview.List
+	Private         *tview.List
+	Input           *tview.InputField
+	Chat            *tview.TextView
+	App             *tview.Application
+}
 
 type User struct {
 	Token            string
@@ -78,8 +114,7 @@ type Persons struct {
 }
 
 type Members struct {
-	Items   []Member `json:"items"`
-	Headers []string `json:"headers"`
+	Items []Member `json:"items"`
 }
 
 type Member struct {

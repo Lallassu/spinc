@@ -23,11 +23,26 @@ func startHttpServer() {
 func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
 	webhook := WebHook{}
 	json.NewDecoder(r.Body).Decode(&webhook)
-	is_mentioned := false
+	channels.WhMessage <- webhook
+}
 
+func HandleMemberShipEvent(w http.ResponseWriter, r *http.Request) {
+	webhook := WebHook{}
+	json.NewDecoder(r.Body).Decode(&webhook)
+	channels.WhMember <- webhook
+}
+
+func HandleRoomEvent(w http.ResponseWriter, r *http.Request) {
+	webhook := WebHook{}
+	json.NewDecoder(r.Body).Decode(&webhook)
+	channels.WhRoom <- webhook
+}
+
+func HandleWhMessage(webhook WebHook) {
+	is_mentioned := false
 	if webhook.Event == "created" {
 		// Get message details
-		f := Request("GET", fmt.Sprintf("/messages/%s", webhook.Data.Id), nil)
+		f, _ := Request("GET", fmt.Sprintf("/messages/%s", webhook.Data.Id), nil)
 		message := Message{}
 		json.Unmarshal(f, &message)
 		// Check if user ID is in mentionedPeople
@@ -59,21 +74,15 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			} else {
-				// Get person name
-				// TBD: Create a common helper function for this func GetPersonName(space_id, person_id)
 				name := message.PersonEmail
-				for _, s := range spaces.Items {
-					if s.Id == webhook.Data.RoomId {
-						for _, u := range s.Members.Items {
-							if u.PersonId == message.PersonId {
-								name = u.PersonDisplayName
-								break
-							}
-						}
-						break
-					}
+				member := maps.MemberIdToMember[message.PersonId]
+				if member != nil {
+					name = member.PersonDisplayName
 				}
+
 				AddUserText(message.Text, name, message.Created)
+
+				// If any files were attached (just print them)
 				if len(webhook.Data.Files) > 0 {
 					for _, f := range webhook.Data.Files {
 						AddUserText(f, name, message.Created)
@@ -83,114 +92,81 @@ func HandleMessageEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		// Add message to space message list
 		unread_space := ""
-		for i, r := range spaces.Items {
-			if r.Id == webhook.Data.RoomId {
-				// Update last Activity BEFORE MarkUnread
-				spaces.Items[i].LastActivity = message.Created
-				if r.Id != user.ActiveSpaceId {
-					unread_space = r.Title
-					// If not active space, show a alert if configured.
-					// TBD: Will not show logo in MacOS without bundle.app layout
-					if config.ShowAlerts {
-						beeep.Notify(fmt.Sprintf("Spinc - %v", r.Title), message.Text, "logo.png")
-					}
-				}
-				if is_mentioned {
-					AddStatusText(fmt.Sprintf("[purple]You were mentioned in channel %s", r.Title))
-					if config.ShowAlerts {
-						beeep.Notify(fmt.Sprintf("Spinc - %v", r.Title), "Someone mentioned your name!", "logo.png")
-					}
-				}
-				spaces.Items[i].Messages.Items = append(spaces.Items[i].Messages.Items, message)
-				break
+		space := maps.SpaceIdToSpace[webhook.Data.RoomId]
+
+		// Update last Activity BEFORE MarkUnread
+		space.LastActivity = message.Created
+		if space.Id != user.ActiveSpaceId {
+			unread_space = space.Title
+			// If not active space, show a alert if configured.
+			// TBD: Will not show logo in MacOS without bundle.app layout
+			if config.ShowAlerts {
+				beeep.Notify(fmt.Sprintf("Spinc - %v", space.Title), message.Text, "logo.png")
 			}
 		}
-		// This is tricky, we need to do this outside of a spaces loop since
-		// markspaceunread will sort spaces, hence index will shift.
+		if is_mentioned {
+			AddStatusText(fmt.Sprintf("[purple]You were mentioned in channel %s", space.Title))
+			if config.ShowAlerts {
+				beeep.Notify(fmt.Sprintf("Spinc - %v", space.Title), "Someone mentioned your name!", "logo.png")
+			}
+		}
+		space.Messages.Items = append(space.Messages.Items, message)
+
 		if unread_space != "" {
 			MarkSpaceUnread(unread_space)
 		}
 	} else if webhook.Event == "deleted" {
-		// Check Room ID
-		for _, s := range spaces.Items {
-			if s.Id == webhook.Data.RoomId {
-				// Check person.
-				name := ""
-				for _, p := range s.Members.Items {
-					if p.PersonId == webhook.Data.PersonId {
-						name = p.PersonDisplayName
-						break
-					}
-				}
-				// Get which message that was deleted.
-				msg := ""
-				for _, m := range s.Messages.Items {
-					if m.Id == webhook.Data.Id {
-						msg = m.Text
-					}
-				}
-				AddStatusText(fmt.Sprintf("[aqua]%s [red]deleted[white] message '[blue]%s[white]' from space [aqua]%s", name, msg, s.Title))
-				break
+		name := maps.MemberIdToMember[webhook.Data.PersonId].PersonDisplayName
+		space := maps.SpaceIdToSpace[webhook.Data.RoomId]
+		// Get which message that was deleted.
+		msg := ""
+		for _, m := range space.Messages.Items {
+			if m.Id == webhook.Data.Id {
+				msg = m.Text
 			}
 		}
+		AddStatusText(fmt.Sprintf("[aqua]%s [red]deleted[white] message '[blue]%s[white]' from space [aqua]%s", name, msg, space.Title))
 	}
-
 }
 
-func HandleMemberShipEvent(w http.ResponseWriter, r *http.Request) {
-	webhook := WebHook{}
-	json.NewDecoder(r.Body).Decode(&webhook)
+func HandleWhRoom(webhook WebHook) {
+	if webhook.Event == "created" {
+		ClearPrivate()
+		ClearSpaces()
+		GetAllSpaces()
+		space := maps.SpaceIdToSpace[webhook.Data.RoomId]
+		if space.Type == "group" {
+			AddStatusText(fmt.Sprintf("New space created: %s", webhook.Data.PersonEmail))
+		} else if space.Type == "direct" {
+			AddStatusText(fmt.Sprintf("Priate chat [red]%s[white] created.", space.Title))
+		}
+	} else if webhook.Event == "updated" {
+		// TBD. Not sure if this is useful information (locked/unlocked rooms)
+	}
+}
 
-	// TBD: Handle newly created rooms!
-
-	for _, s := range spaces.Items {
-		if s.Id == webhook.Data.RoomId {
-			if webhook.Event == "created" {
-				AddStatusText(fmt.Sprintf("[aqua]%s [red]joined space [aqua]%s", webhook.Data.PersonDisplayName, s.Title))
-				if webhook.Data.PersonId == user.Info.Id {
-					GetAllSpaces()
-				}
-			} else if webhook.Event == "updated" {
-				// TBD: Needed?
-			} else if webhook.Event == "deleted" {
-				AddStatusText(fmt.Sprintf("[aqua]%s [red]left space [aqua]%s", webhook.Data.PersonDisplayName, s.Title))
-				// If it's current user, update spaces
-				if webhook.Data.PersonId == user.Info.Id {
-					GetAllSpaces()
-					// if current space, clear users
-					if webhook.Data.RoomId == user.ActiveSpaceId {
-						ChangeToStatusSpace()
-					}
-				}
+func HandleWhMember(webhook WebHook) {
+	space := maps.SpaceIdToSpace[webhook.Data.RoomId]
+	if webhook.Event == "created" {
+		AddStatusText(fmt.Sprintf("[aqua]%s [red]joined space [aqua]%s", webhook.Data.PersonDisplayName, space.Title))
+		if webhook.Data.PersonId == user.Info.Id {
+			GetAllSpaces()
+		}
+	} else if webhook.Event == "updated" {
+		// TBD: Needed?
+	} else if webhook.Event == "deleted" {
+		AddStatusText(fmt.Sprintf("[aqua]%s [red]left space [aqua]%s", webhook.Data.PersonDisplayName, space.Title))
+		// If it's current user, update spaces
+		if webhook.Data.PersonId == user.Info.Id {
+			GetAllSpaces()
+			// if current space, clear users
+			if webhook.Data.RoomId == user.ActiveSpaceId {
+				ChangeToStatusSpace()
 			}
-			return
 		}
 	}
 
 	// Might be a invite or newly created room that didn't exist before.
 	AddStatusText("New room invite/creation.")
 	GetAllSpaces()
-
-}
-
-func HandleRoomEvent(w http.ResponseWriter, r *http.Request) {
-	webhook := WebHook{}
-	json.NewDecoder(r.Body).Decode(&webhook)
-
-	if webhook.Event == "created" {
-		ClearPrivate()
-		ClearSpaces()
-		GetAllSpaces()
-		for _, s := range spaces.Items {
-			if s.Id == webhook.Data.RoomId {
-				if s.Type == "group" {
-					AddStatusText(fmt.Sprintf("New space created: %s", webhook.Data.PersonEmail))
-				} else if s.Type == "direct" {
-					AddStatusText(fmt.Sprintf("Priate chat [red]%s[white] created.", s.Title))
-				}
-			}
-		}
-	} else if webhook.Event == "updated" {
-		// TBD. Not sure if this is useful information (locked/unlocked rooms)
-	}
 }

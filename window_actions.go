@@ -48,6 +48,16 @@ func ResetInputHistoryPosition() {
 	input_pos = input_history.Front()
 }
 
+func MarkActiveSpaceRead(space string) {
+	for e := last_active_spaces.Front(); e != nil; e = e.Next() {
+		if e.Value.(Space).Title == space {
+			last_active_spaces.Remove(e)
+			break
+		}
+	}
+	PrintActiveSpaces()
+}
+
 func GetActiveSpace() string {
 	e := last_active_spaces.Front()
 	if e == nil {
@@ -97,16 +107,16 @@ func PrintActiveSpaces() {
 		}
 		l = append(l, fmt.Sprintf("[aqua]:%v [green]%s", n+1, active_spaces[n]))
 	}
-	win.status_spaces.SetText(fmt.Sprintf("[navy][[white]Act: %s[navy]]", strings.Join(l, " ")))
+	win.StatusSpaces.SetText(fmt.Sprintf("[navy][[white]Act: %s[navy]]", strings.Join(l, " ")))
 }
 
 func UpdateStatusOwnStatus(status string) {
 	if status == "active" {
-		win.status_ownstatus.SetText(fmt.Sprintf("[navy][[green]%s[navy]]", status))
+		win.StatusOwnStatus.SetText(fmt.Sprintf("[navy][[green]%s[navy]]", status))
 	} else if status == "inactive" {
-		win.status_ownstatus.SetText(fmt.Sprintf("[navy][[orange]%s[navy]]", status))
+		win.StatusOwnStatus.SetText(fmt.Sprintf("[navy][[orange]%s[navy]]", status))
 	} else {
-		win.status_ownstatus.SetText(fmt.Sprintf("[navy][[white]%s[navy]]", status))
+		win.StatusOwnStatus.SetText(fmt.Sprintf("[navy][[white]%s[navy]]", status))
 	}
 }
 
@@ -118,65 +128,71 @@ func ChangeToStatusSpace() {
 	for _, m := range status_text {
 		AddStatusTextWithTime(m.Text, m.Created)
 	}
-	win.input.SetLabel("[navy]<status> ")
-	win.status_space.SetText("[navy][[red]STATUS[navy]]")
+	win.Input.SetLabel("[navy]<status> ")
+	win.StatusSpace.SetText("[navy][[red]STATUS[navy]]")
 	user.ActiveSpaceId = "status"
 }
 
 func UpdateStatusName(name string) {
-	win.status_name.SetText(fmt.Sprintf("[navy][[white]%s[navy]]", name))
+	win.StatusName.SetText(fmt.Sprintf("[navy][[white]%s[navy]]", name))
 }
 
 func UpdateStatusSpace(space string) {
-	win.status_space.SetText(fmt.Sprintf("[navy][[white]#%s[navy]]", space))
+	win.StatusSpace.SetText(fmt.Sprintf("[navy][[white]#%s[navy]]", space))
 }
 
 func UpdateStatusPrivate(space string) {
-	win.status_space.SetText(fmt.Sprintf("[navy][[white]@%s[navy]]", space))
+	win.StatusSpace.SetText(fmt.Sprintf("[navy][[white]@%s[navy]]", space))
 }
 
 func AddPrivate(user string) {
-	win.private.AddItem(fmt.Sprintf("%s", user), "", 0, nil)
-	win.private.SetTitle(fmt.Sprintf("Private (%d)", win.private.GetItemCount()))
+	if user != "" {
+		win.Private.AddItem(fmt.Sprintf("%s", user), "", 0, nil)
+		win.Private.SetTitle(fmt.Sprintf("Private (%d)", win.Private.GetItemCount()))
+	}
 }
 
 func AddUser(user string) {
-	win.users.AddItem(fmt.Sprintf("%s", user), "", 0, nil)
-	win.users.SetTitle(fmt.Sprintf("Space Users (%d)", win.users.GetItemCount()))
+	if user != "" {
+		win.Users.AddItem(fmt.Sprintf("%s", user), "", 0, nil)
+		win.Users.SetTitle(fmt.Sprintf("Space Users (%d)", win.Users.GetItemCount()))
+	}
 }
 
 func AddSpace(space string) {
-	win.spaces.AddItem(fmt.Sprintf("%s", space), "", 0, nil)
-	win.spaces.SetTitle(fmt.Sprintf("Spaces (%d)", win.spaces.GetItemCount()))
+	if space != "" {
+		win.Spaces.AddItem(fmt.Sprintf("%s", space), "", 0, nil)
+		win.Spaces.SetTitle(fmt.Sprintf("Spaces (%d)", win.Spaces.GetItemCount()))
+	}
 }
 
 func ClearPrivate() {
-	win.private.Clear()
-	win.private.SetTitle(fmt.Sprintf("Private (%d)", win.private.GetItemCount()))
+	win.Private.Clear()
+	win.Private.SetTitle(fmt.Sprintf("Private (%d)", win.Private.GetItemCount()))
 }
 
 func ClearUsers() {
-	win.users.Clear()
-	win.users.SetTitle(fmt.Sprintf("Space Users (%d)", win.users.GetItemCount()))
+	win.Users.Clear()
+	win.Users.SetTitle(fmt.Sprintf("Space Users (%d)", win.Users.GetItemCount()))
 }
 
 func ClearSpaces() {
-	win.spaces.Clear()
-	win.spaces.SetTitle(fmt.Sprintf("Spaces (%d)", win.spaces.GetItemCount()))
+	win.Spaces.Clear()
+	win.Spaces.SetTitle(fmt.Sprintf("Spaces (%d)", win.Spaces.GetItemCount()))
 }
 
 func UserSelection() {
-	selected := win.users.GetCurrentItem()
-	user, _ := win.users.GetItemText(selected)
+	selected := win.Users.GetCurrentItem()
+	user, _ := win.Users.GetItemText(selected)
 	user = CleanString(user)
 	user = strings.TrimLeft(user, "@")
-	win.input.SetText(fmt.Sprintf("/msg <%s> ", user))
+	win.Input.SetText(fmt.Sprintf("/msg <%s> ", user))
 }
 
 func PrivateSelection() {
 	ClearChat()
-	selected := win.private.GetCurrentItem()
-	user, _ := win.private.GetItemText(selected)
+	selected := win.Private.GetCurrentItem()
+	user, _ := win.Private.GetItemText(selected)
 	user = CleanString(user)
 
 	AddStatusText(fmt.Sprintf("Changed to private chat with [navy]%v", user))
@@ -186,8 +202,8 @@ func PrivateSelection() {
 
 func SpaceSelection() {
 	ClearChat()
-	selected := win.spaces.GetCurrentItem()
-	space, _ := win.spaces.GetItemText(selected)
+	selected := win.Spaces.GetCurrentItem()
+	space, _ := win.Spaces.GetItemText(selected)
 	space = CleanString(space)
 
 	AddStatusText(fmt.Sprintf("Changed space to [green]%v", space))
@@ -195,38 +211,38 @@ func SpaceSelection() {
 }
 
 func SetInputLabelSpace(space string) {
-	win.input.SetLabel(fmt.Sprintf("[%s][#%s] ", theme.InputLabel, space))
+	win.Input.SetLabel(fmt.Sprintf("[%s][#%s] ", theme.InputLabel, space))
 }
 
 func SetInputLabelUser(space string) {
-	win.input.SetLabel(fmt.Sprintf("[%s][@%s] ", theme.InputLabel, space))
+	win.Input.SetLabel(fmt.Sprintf("[%s][@%s] ", theme.InputLabel, space))
 }
 
 func ClearChat() {
-	win.chat.Clear()
+	win.Chat.Clear()
 	user.CurrentRows = 0
 	user.CurrentScrollPos = -1
 }
 
 func AddUserText(msg, usr, ts string) {
 	t, _ := time.Parse(time.RFC3339, ts)
-	win.chat.Write([]byte(fmt.Sprintf("[%s][%s][%s] <%s>[%s] %s\n", theme.ChatTimestamp, t.In(user.Locale).Format("02/01 15:04:05"), theme.UserChatName, usr, theme.UserChatText, msg)))
-	win.chat.ScrollToEnd()
+	win.Chat.Write([]byte(fmt.Sprintf("[%s][%s][%s] <%s>[%s] %s\n", theme.ChatTimestamp, t.In(user.Locale).Format("02/01 15:04:05"), theme.UserChatName, usr, theme.UserChatText, msg)))
+	win.Chat.ScrollToEnd()
 	user.CurrentRows += 1
 	// TBD: Add to logfile
 }
 
 func AddStatusText(msg string) {
-	win.chat.Write([]byte(fmt.Sprintf("[%s][%s][blue] -[white]![blue]-[white] %s\n", theme.ChatTimestamp, time.Now().Format("02/01 15:04:05"), msg)))
-	win.chat.ScrollToEnd()
+	win.Chat.Write([]byte(fmt.Sprintf("[%s][%s][blue] -[white]![blue]-[white] %s\n", theme.ChatTimestamp, time.Now().Format("02/01 15:04:05"), msg)))
+	win.Chat.ScrollToEnd()
 	user.CurrentRows += 1
 	// TBD: Add to logfile
 	status_text = append(status_text, Status{Text: msg, Created: time.Now().Format("02/01 15:04:05")})
 }
 
 func AddStatusTextWithTime(msg, ts string) {
-	win.chat.Write([]byte(fmt.Sprintf("[%s][%s][blue] -[white]![blue]-[white] %s\n", theme.ChatTimestamp, ts, msg)))
-	win.chat.ScrollToEnd()
+	win.Chat.Write([]byte(fmt.Sprintf("[%s][%s][blue] -[white]![blue]-[white] %s\n", theme.ChatTimestamp, ts, msg)))
+	win.Chat.ScrollToEnd()
 }
 
 func AddOwnText(msg, usr, ts string) {
@@ -236,8 +252,8 @@ func AddOwnText(msg, usr, ts string) {
 	}
 
 	// TBD: Add to logfile
-	win.chat.Write([]byte(fmt.Sprintf("[navy][%s][fuchsia] <%s>[white] %s\n", t.In(user.Locale).Format("02/01 15:04:05"), usr, msg)))
-	win.chat.ScrollToEnd()
+	win.Chat.Write([]byte(fmt.Sprintf("[navy][%s][fuchsia] <%s>[white] %s\n", t.In(user.Locale).Format("02/01 15:04:05"), usr, msg)))
+	win.Chat.ScrollToEnd()
 	user.CurrentRows += 1
 }
 
@@ -246,16 +262,12 @@ func UpdateSpaceList() {
 	ClearSpaces()
 	sort.Sort(SpaceSorter(spaces.Items))
 	for _, m := range spaces.Items {
-		// Odd stuff!
-		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
-			continue
-		}
 		if m.Type == "group" {
 			// Check if it's in the active list to mark it unread/green
 			is_active := false
 			for e := last_active_spaces.Front(); e != nil; e = e.Next() {
 				if e.Value.(Space).Title == m.Title {
-					win.spaces.AddItem(fmt.Sprintf("[white:green]%s", m.Title), "", 0, nil)
+					win.Spaces.AddItem(fmt.Sprintf("[white:green]%s", m.Title), "", 0, nil)
 					is_active = true
 					break
 				}
@@ -271,15 +283,11 @@ func UpdatePrivateList() {
 	ClearPrivate()
 	sort.Sort(SpaceSorter(spaces.Items))
 	for _, m := range spaces.Items {
-		// Odd stuff!
-		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
-			continue
-		}
 		if m.Type == "direct" {
 			is_active := false
 			for e := last_active_spaces.Front(); e != nil; e = e.Next() {
 				if e.Value.(Space).Title == m.Title {
-					win.private.AddItem(fmt.Sprintf("[white:green]%s", m.Title), "", 0, nil)
+					win.Private.AddItem(fmt.Sprintf("[white:green]%s", m.Title), "", 0, nil)
 					is_active = true
 					break
 				}
@@ -293,8 +301,8 @@ func UpdatePrivateList() {
 
 func MarkSpaceUnread(space string) {
 	// Check for spaces
-	for i := 0; i < win.spaces.GetItemCount(); i++ {
-		txt, _ := win.spaces.GetItemText(i)
+	for i := 0; i < win.Spaces.GetItemCount(); i++ {
+		txt, _ := win.Spaces.GetItemText(i)
 		txt = CleanString(txt)
 		if txt == space {
 			SetActiveSpace(space)
@@ -303,8 +311,8 @@ func MarkSpaceUnread(space string) {
 		}
 	}
 	// Check for private spaces
-	for i := 0; i < win.private.GetItemCount(); i++ {
-		txt, _ := win.private.GetItemText(i)
+	for i := 0; i < win.Private.GetItemCount(); i++ {
+		txt, _ := win.Private.GetItemText(i)
 		txt = CleanString(txt)
 		if txt == space {
 			SetActiveSpace(space)
@@ -315,19 +323,19 @@ func MarkSpaceUnread(space string) {
 }
 
 func MarkSpaceRead(space string) {
-	for i := 0; i < win.spaces.GetItemCount(); i++ {
-		txt, _ := win.spaces.GetItemText(i)
+	for i := 0; i < win.Spaces.GetItemCount(); i++ {
+		txt, _ := win.Spaces.GetItemText(i)
 		txt = CleanString(txt)
 		if txt == space {
-			win.spaces.SetItemText(i, fmt.Sprintf("[white]%s", space), "")
+			win.Spaces.SetItemText(i, fmt.Sprintf("[white]%s", space), "")
 			return
 		}
 	}
-	for i := 0; i < win.private.GetItemCount(); i++ {
-		txt, _ := win.private.GetItemText(i)
+	for i := 0; i < win.Private.GetItemCount(); i++ {
+		txt, _ := win.Private.GetItemText(i)
 		txt = CleanString(txt)
 		if txt == space {
-			win.private.SetItemText(i, fmt.Sprintf("[white]%s", space), "")
+			win.Private.SetItemText(i, fmt.Sprintf("[white]%s", space), "")
 			return
 		}
 	}

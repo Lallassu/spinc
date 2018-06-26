@@ -21,36 +21,40 @@ var flagConfigFile = flag.String("cfg", "spinc.conf", "Specify configuration fil
 var flagListenHost = flag.String("s", "", "http://host:port for webhooks.")
 var flagVersion = flag.Bool("v", false, "Output spinc version and exit")
 
-type windows struct {
-	status_time      *tview.TableCell
-	status_name      *tview.TableCell
-	status_space     *tview.TableCell
-	status_lag       *tview.TableCell
-	status_ownstatus *tview.TableCell
-	status_spaces    *tview.TableCell
-	status           *tview.Table
-	spaces           *tview.List
-	users            *tview.List
-	private          *tview.List
-	input            *tview.InputField
-	chat             *tview.TextView
-	app              *tview.Application
+var channels = Channels{
+	Quit:       make(chan int),
+	Messages:   make(chan string),
+	Members:    make(chan string),
+	CreateRoom: make(chan []string),
+	Whois:      make(chan []string),
+	WhMessage:  make(chan WebHook),
+	WhMember:   make(chan WebHook),
+	WhRoom:     make(chan WebHook),
 }
 
-var win = windows{
-	status_time:      tview.NewTableCell(""),
-	status_name:      tview.NewTableCell(""),
-	status_space:     tview.NewTableCell(""),
-	status_lag:       tview.NewTableCell(""),
-	status_ownstatus: tview.NewTableCell(""),
-	status_spaces:    tview.NewTableCell(""),
-	status:           tview.NewTable(),
-	spaces:           tview.NewList(),
-	users:            tview.NewList(),
-	private:          tview.NewList(),
-	input:            tview.NewInputField(),
-	chat:             tview.NewTextView(),
-	app:              tview.NewApplication(),
+// TBD: Make a members lookup as well.
+
+var win = Windows{
+	StatusTime:      tview.NewTableCell(""),
+	StatusName:      tview.NewTableCell(""),
+	StatusSpace:     tview.NewTableCell(""),
+	StatusLag:       tview.NewTableCell(""),
+	StatusOwnStatus: tview.NewTableCell(""),
+	StatusSpaces:    tview.NewTableCell(""),
+	Status:          tview.NewTable(),
+	Spaces:          tview.NewList(),
+	Users:           tview.NewList(),
+	Private:         tview.NewList(),
+	Input:           tview.NewInputField(),
+	Chat:            tview.NewTextView(),
+	App:             tview.NewApplication(),
+}
+
+var maps = Maps{
+	SpaceIdToSpace:     make(map[string]*Space),
+	SpaceTitleToSpace:  make(map[string]*Space),
+	MemberNameToMember: make(map[string]*Member),
+	MemberIdToMember:   make(map[string]*Member),
 }
 
 func Help() {
@@ -80,7 +84,7 @@ func Help() {
 
 func Quit() {
 	// TBD: perform all required exits. Quit go childs etc.
-	win.app.Stop()
+	win.App.Stop()
 	os.Exit(0)
 }
 
@@ -88,7 +92,7 @@ func main() {
 	flag.Parse()
 
 	if *flagVersion {
-		fmt.Printf("Spinc v%s\n", version)
+		fmt.Printf("Spinc version %s\n", version)
 		os.Exit(0)
 	}
 
@@ -109,11 +113,11 @@ func main() {
 
 	// Create a focus chain
 	fc := []interface{}{
-		interface{}(win.users),
-		interface{}(win.private),
-		interface{}(win.spaces),
-		interface{}(win.input),
-		interface{}(win.chat),
+		interface{}(win.Users),
+		interface{}(win.Private),
+		interface{}(win.Spaces),
+		interface{}(win.Input),
+		interface{}(win.Chat),
 	}
 
 	// Disable logging output from standard logging
@@ -121,43 +125,43 @@ func main() {
 	log.SetOutput(ioutil.Discard)
 
 	// Initial setup of windows
-	win.spaces.ShowSecondaryText(false)
-	win.spaces.SetBorder(true)
-	win.spaces.SetSelectedBackgroundColor(tcell.ColorBlack)
-	win.spaces.SetSelectedTextColor(tcell.ColorNavy)
-	win.spaces.SetTitle("Spaces").SetTitleColor(tcell.ColorNames[theme.SpaceTitle])
-	win.spaces.SetDoneFunc(func() {
-		win.chat.ScrollToEnd()
+	win.Spaces.ShowSecondaryText(false)
+	win.Spaces.SetBorder(true)
+	win.Spaces.SetSelectedBackgroundColor(tcell.ColorBlack)
+	win.Spaces.SetSelectedTextColor(tcell.ColorNavy)
+	win.Spaces.SetTitle("Spaces").SetTitleColor(tcell.ColorNames[theme.SpaceTitle])
+	win.Spaces.SetDoneFunc(func() {
+		win.Chat.ScrollToEnd()
 	})
 
-	win.users.SetBorder(true).SetTitle("Users")
-	win.users.SetTitleColor(tcell.ColorNames[theme.UsersTitle])
-	win.users.ShowSecondaryText(false)
-	win.users.SetSelectedBackgroundColor(tcell.ColorBlack)
-	win.users.SetSelectedTextColor(tcell.ColorNavy)
+	win.Users.SetBorder(true).SetTitle("Users")
+	win.Users.SetTitleColor(tcell.ColorNames[theme.UsersTitle])
+	win.Users.ShowSecondaryText(false)
+	win.Users.SetSelectedBackgroundColor(tcell.ColorBlack)
+	win.Users.SetSelectedTextColor(tcell.ColorNavy)
 
-	win.private.SetBorder(true).SetTitle("Private")
-	win.private.SetTitleColor(tcell.ColorNames[theme.PrivateTitle])
-	win.private.ShowSecondaryText(false)
-	win.private.SetSelectedBackgroundColor(tcell.ColorBlack)
-	win.private.SetSelectedTextColor(tcell.ColorNavy)
+	win.Private.SetBorder(true).SetTitle("Private")
+	win.Private.SetTitleColor(tcell.ColorNames[theme.PrivateTitle])
+	win.Private.ShowSecondaryText(false)
+	win.Private.SetSelectedBackgroundColor(tcell.ColorBlack)
+	win.Private.SetSelectedTextColor(tcell.ColorNavy)
 
-	win.chat.SetBorder(true)
-	win.chat.SetTitleAlign(tview.AlignLeft)
-	win.chat.SetDynamicColors(true)
-	win.chat.SetScrollable(true)
-	win.chat.SetWordWrap(true)
+	win.Chat.SetBorder(true)
+	win.Chat.SetTitleAlign(tview.AlignLeft)
+	win.Chat.SetDynamicColors(true)
+	win.Chat.SetScrollable(true)
+	win.Chat.SetWordWrap(true)
 
-	win.input.SetBorder(true)
+	win.Input.SetBorder(true)
 
-	win.input.SetFieldBackgroundColor(tcell.ColorNames[theme.InputField])
-	win.input.SetBorder(true)
-	win.input.SetDoneFunc(func(key tcell.Key) {
+	win.Input.SetFieldBackgroundColor(tcell.ColorNames[theme.InputField])
+	win.Input.SetBorder(true)
+	win.Input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
-			if len(win.input.GetText()) == 0 || user.ActiveSpaceId == "" {
+			if len(win.Input.GetText()) == 0 || user.ActiveSpaceId == "" {
 				return
 			}
-			text := win.input.GetText()
+			text := win.Input.GetText()
 			AddInputHistory(text)
 
 			if byte(text[0]) == '/' {
@@ -180,17 +184,21 @@ func main() {
 				case "msg", "m":
 					go MessageUser(words[1:])
 				case "create", "c":
-					CreateRoom(words[1:])
+					channels.CreateRoom <- words[1:]
 				case "me":
-					go WhoisUsers(strings.Fields(user.Info.DisplayName))
+					channels.Whois <- strings.Fields(user.Info.DisplayName)
 				case "whois", "w":
-					go WhoisUsers(words[1:])
+					channels.Whois <- words[1:]
 				case "delete", "d":
 					go DeleteCurrentSpace()
+				case "debug":
+					AddStatusText(fmt.Sprintf("Workers: %v", channels.workers))
+					AddStatusText(fmt.Sprintf("Spaces: %v", len(maps.SpaceIdToSpace)))
+					AddStatusText(fmt.Sprintf("Members: TBD"))
 				default:
 					AddStatusText(fmt.Sprintf("[red]No such command '%s'.", text[1:]))
 				}
-				win.input.SetText("")
+				win.Input.SetText("")
 				ResetInputHistoryPosition()
 				return
 			}
@@ -198,48 +206,48 @@ func main() {
 				go SendMessageToChannel(text)
 				AddOwnText(text, user.Info.DisplayName, "")
 				own = append(own, OwnMessages{SpaceId: user.ActiveSpaceId, Text: text})
-				win.input.SetText("")
+				win.Input.SetText("")
 				ResetInputHistoryPosition()
 			}
 		}
 	})
-	win.input.SetInputCapture(win.input.GetInputCapture())
+	win.Input.SetInputCapture(win.Input.GetInputCapture())
 
 	// Capture in lists
-	win.spaces.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	win.Spaces.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEnter {
-			win.app.SetFocus(win.input)
+			win.App.SetFocus(win.Input)
 			SpaceSelection()
 		}
 		return event
 	})
 
-	win.private.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	win.Private.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEnter {
-			win.app.SetFocus(win.input)
+			win.App.SetFocus(win.Input)
 			PrivateSelection()
 		}
 		return event
 	})
 
-	win.users.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	win.Users.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEnter {
-			win.app.SetFocus(win.input)
+			win.App.SetFocus(win.Input)
 			UserSelection()
 		}
 		return event
 	})
 
 	// Capture global
-	win.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	win.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		keyName := event.Name()
 		if event.Key() == tcell.KeyCtrlS {
-			win.app.SetFocus(win.spaces)
+			win.App.SetFocus(win.Spaces)
 		} else if keyName == config.KeyPaste {
 			text, _ := clipboard.ReadAll()
-			win.input.SetText(text)
+			win.Input.SetText(text)
 		} else if keyName == config.KeySelectCurrentUsers {
-			win.app.SetFocus(win.users)
+			win.App.SetFocus(win.Users)
 		} else if keyName == config.KeyShowLastActivity {
 			name := GetActiveSpace()
 			if name != "" {
@@ -247,33 +255,33 @@ func main() {
 				ChangeSpace(name)
 			}
 		} else if keyName == config.KeyScrollChatBeginning {
-			win.chat.ScrollToBeginning()
+			win.Chat.ScrollToBeginning()
 		} else if keyName == config.KeyScrollChatEnd {
-			win.chat.ScrollToEnd()
+			win.Chat.ScrollToEnd()
 		} else if keyName == config.KeyInputHistoryUp {
-			if win.input.HasFocus() {
+			if win.Input.HasFocus() {
 				history := GetNextInputHistory()
 				if history != "" {
-					win.input.SetText(history)
+					win.Input.SetText(history)
 				}
 			}
 		} else if keyName == config.KeyInputHistoryDown {
-			if win.input.HasFocus() {
+			if win.Input.HasFocus() {
 				history := GetPrevInputHistory()
 				if history != " " {
-					win.input.SetText(history)
+					win.Input.SetText(history)
 				}
 			}
 		} else if keyName == config.KeySelectPrivateChats {
-			win.app.SetFocus(win.private)
+			win.App.SetFocus(win.Private)
 		} else if keyName == config.KeySelectInput {
-			win.app.SetFocus(win.input)
+			win.App.SetFocus(win.Input)
 		} else if keyName == config.KeyClearChatWindow {
 			ClearChat()
 			//} else if keyName == tcell.KeyCtrlC {
 			// TBD: handle quit for all running go routines.
 		} else if keyName == config.KeyFocusWindows {
-			text := win.input.GetText()
+			text := win.Input.GetText()
 			if len(text) > 0 {
 				// If / in input, handle autocomplete.
 				if byte(text[0]) == '/' {
@@ -288,7 +296,7 @@ func main() {
 						for _, s := range spaces.Items {
 							for _, m := range s.Members.Items {
 								if strings.Contains(m.PersonDisplayName, name) {
-									win.input.SetText(fmt.Sprintf("/%s <%s> ", strings.Join(words[0:1], ""), m.PersonDisplayName))
+									win.Input.SetText(fmt.Sprintf("/%s <%s> ", strings.Join(words[0:1], ""), m.PersonDisplayName))
 									return event
 								}
 							}
@@ -321,11 +329,11 @@ func main() {
 
 						switch fc[pos].(type) {
 						case *tview.List:
-							win.app.SetFocus(fc[pos].(*tview.List))
+							win.App.SetFocus(fc[pos].(*tview.List))
 						case *tview.InputField:
-							win.app.SetFocus(fc[pos].(*tview.InputField))
+							win.App.SetFocus(fc[pos].(*tview.InputField))
 						case *tview.TextView:
-							win.app.SetFocus(fc[pos].(*tview.TextView))
+							win.App.SetFocus(fc[pos].(*tview.TextView))
 						}
 						break
 					}
@@ -336,45 +344,45 @@ func main() {
 	})
 
 	// Statusbar
-	win.status.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status.SetFixed(1, 6)
+	win.Status.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.Status.SetFixed(1, 6)
 
 	// status time
-	win.status_time.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status_time.SetAlign(tview.AlignCenter)
-	win.status.SetCell(0, 0, win.status_time)
+	win.StatusTime.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.StatusTime.SetAlign(tview.AlignCenter)
+	win.Status.SetCell(0, 0, win.StatusTime)
 	// Status name
-	win.status_name.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status_name.SetAlign(tview.AlignCenter)
-	win.status.SetCell(0, 1, win.status_name)
+	win.StatusName.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.StatusName.SetAlign(tview.AlignCenter)
+	win.Status.SetCell(0, 1, win.StatusName)
 	// Status space
-	win.status_space.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status_space.SetAlign(tview.AlignCenter)
-	win.status.SetCell(0, 2, win.status_space)
+	win.StatusSpace.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.StatusSpace.SetAlign(tview.AlignCenter)
+	win.Status.SetCell(0, 2, win.StatusSpace)
 	// Status lag
-	win.status_lag.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status_lag.SetAlign(tview.AlignCenter)
-	win.status.SetCell(0, 3, win.status_lag)
+	win.StatusLag.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.StatusLag.SetAlign(tview.AlignCenter)
+	win.Status.SetCell(0, 3, win.StatusLag)
 	// Status own status
-	win.status_ownstatus.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status_ownstatus.SetAlign(tview.AlignCenter)
-	win.status.SetCell(0, 4, win.status_ownstatus)
+	win.StatusOwnStatus.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.StatusOwnStatus.SetAlign(tview.AlignCenter)
+	win.Status.SetCell(0, 4, win.StatusOwnStatus)
 	// Status spaces
-	win.status_spaces.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
-	win.status_spaces.SetAlign(tview.AlignCenter)
-	win.status.SetCell(0, 5, win.status_spaces)
+	win.StatusSpaces.SetBackgroundColor(tcell.ColorNames[theme.StatusBar])
+	win.StatusSpaces.SetAlign(tview.AlignCenter)
+	win.Status.SetCell(0, 5, win.StatusSpaces)
 
 	// Flex layout
 	flexLists := tview.NewFlex().SetDirection(tview.FlexRow)
 	flexChat := tview.NewFlex().SetDirection(tview.FlexRow)
 
 	flex := tview.NewFlex()
-	flexLists.AddItem(win.users, 0, 4, false)
-	flexLists.AddItem(win.private, 0, 3, false)
-	flexLists.AddItem(win.spaces, 0, 2, false)
-	flexChat.AddItem(win.chat, 0, 10, false)
-	flexChat.AddItem(win.status, 1, 1, false)
-	flexChat.AddItem(win.input, 3, 2, false)
+	flexLists.AddItem(win.Users, 0, 4, false)
+	flexLists.AddItem(win.Private, 0, 3, false)
+	flexLists.AddItem(win.Spaces, 0, 2, false)
+	flexChat.AddItem(win.Chat, 0, 10, false)
+	flexChat.AddItem(win.Status, 1, 1, false)
+	flexChat.AddItem(win.Input, 3, 2, false)
 	flex.AddItem(flexLists, 0, 1, false)
 	flex.AddItem(flexChat, 0, 5, false)
 
@@ -386,6 +394,13 @@ func main() {
 	go startHttpServer()
 
 	go GetAllSpaces()
+	// arbitrary value of 30 workers
+	for i := 0; i < 30; i++ {
+		go SparkWorker()
+	}
+
+	// Fetch own info first time before go routine takes over.
+	GetMeInfo()
 
 	// Go routines that keeps running until program exits
 	go UpdateStatusTime()
@@ -404,7 +419,7 @@ func main() {
 	AddStatusText("[#EC1E0D] ███████╗██████╔╝██║██╔██╗ ██║██║     ")
 	AddStatusText("[#F54E16] ╚════██║██╔═══╝ ██║██║╚██╗██║██║     ")
 	AddStatusText("[#F57316] ███████║██║     ██║██║ ╚████║╚██████╗")
-	AddStatusText(fmt.Sprintf("[#F5E216] ╚══════╝╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝ [green]v%s", version))
+	AddStatusText(fmt.Sprintf("[#F5E216] ╚══════╝╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═════╝ [green]version %s", version))
 	AddStatusText("  [red]Spark In Console")
 	AddStatusText("  [red]by Magnus Persson")
 	AddStatusText("  [red]https://github.com/lallassu/spinc")
@@ -413,7 +428,12 @@ func main() {
 	AddStatusText(fmt.Sprintf("Theme used: %s", config.ThemeFile))
 	AddStatusText(fmt.Sprintf("Webhook url used: %s", user.GrokUrl))
 
-	if err := win.app.SetRoot(flex, true).SetFocus(win.input).Run(); err != nil {
+	if err := win.App.SetRoot(flex, true).SetFocus(win.Input).Run(); err != nil {
 		panic(err)
+	}
+
+	// End all workers
+	for i := 0; i < channels.workers; i++ {
+		channels.Quit <- 1
 	}
 }
