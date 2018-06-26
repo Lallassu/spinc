@@ -39,15 +39,12 @@ Linux, Unix (requires 'xclip' or 'xsel' command to be installed) in order to use
 - Available colors: https://github.com/gdamore/tcell/blob/master/color.go (and pretty much all hexadecimal colors)
 
 ## Known Issues
-- Get all users if there are more than 100 in a space.
 - Not all colors are possible to configure yet.
 
 ## Todo
 - Logging to file
-- Clean up code duplication for lookups etc.
 - Handle memberships update events
 - Handle lock/unlock room events (room update event)
-- Message channel to each go routine to make them quit when app quits
 
 ## License
 MIT
