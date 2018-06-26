@@ -150,6 +150,7 @@ func HandleWhMember(webhook WebHook) {
 	if webhook.Event == "created" {
 		AddStatusText(fmt.Sprintf("[aqua]%s [red]joined space [aqua]%s", webhook.Data.PersonDisplayName, space.Title))
 		if webhook.Data.PersonId == user.Info.Id {
+            // TBD: Only get the created room and add it to space list
 			GetAllSpaces()
 		}
 	} else if webhook.Event == "updated" {
@@ -158,6 +159,7 @@ func HandleWhMember(webhook WebHook) {
 		AddStatusText(fmt.Sprintf("[aqua]%s [red]left space [aqua]%s", webhook.Data.PersonDisplayName, space.Title))
 		// If it's current user, update spaces
 		if webhook.Data.PersonId == user.Info.Id {
+            // TBD: Only get the created room and remove it from spaces
 			GetAllSpaces()
 			// if current space, clear users
 			if webhook.Data.RoomId == user.ActiveSpaceId {

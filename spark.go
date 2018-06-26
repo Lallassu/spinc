@@ -71,14 +71,10 @@ func GetMembersOfSpace(space_id string) {
 	}
 
 	space := maps.SpaceIdToSpace[space_id]
-	for i, m := range members {
-		space.Members.Items = append(space.Members.Items, m)
-		maps.MemberNameToMember[m.PersonDisplayName] = &space.Members.Items[i]
-		maps.MemberIdToMember[m.PersonId] = &space.Members.Items[i]
-	}
+    space.Members.Items = members
 	if user.ActiveSpaceId == space_id {
 		ChangeSpace(space.Title)
-	}
+    }
 }
 
 func ChangeSpace(space string) {
@@ -135,25 +131,26 @@ func DeleteCurrentSpace() {
 
 func GetAllSpaces() {
 	f, _ := Request("GET", "/rooms", nil)
+    spaces = Spaces{}
 	json.Unmarshal(f, &spaces)
 	ClearPrivate()
 	ClearSpaces()
 	sort.Sort(SpaceSorter(spaces.Items))
 	count := 0
+    // Clear maps
+    maps.SpaceIdToSpace = make(map[string]*Space)
+    maps.SpaceTitleToSpace = make(map[string]*Space)
 	for i, m := range spaces.Items {
 		// Perform some mapping for faster lookup
 		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
 			count++
 			m.Title = fmt.Sprintf("%v (%v)", m.Title, count)
 			maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
-		}
+		} else {
+            maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
+        }
 		maps.SpaceIdToSpace[m.Id] = &spaces.Items[i]
-		maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
-		// Empty title groups may be with people that has been removed.
-		// Might still want to view messages for these spaces.
-		//if m.Title == "Empty Title" {
-		////	continue
-		//}
+
 		if m.Type == "direct" {
 			AddPrivate(m.Title)
 		} else if m.Type == "group" {
@@ -213,7 +210,6 @@ func MessageUser(usr []string) {
 	Request("POST", "/messages", data)
 }
 
-// TBD: To worker
 func CreateRoom(name []string) {
 	room_name := strings.Join(name, " ")
 	AddStatusText(fmt.Sprintf("Creating room %s...", room_name))
@@ -231,7 +227,6 @@ func CreateRoom(name []string) {
 }
 
 // Invite to current room
-// TBD: To worker
 func InviteUser(usr []string) {
 	data := map[string]interface{}{
 		"roomId":   user.ActiveSpaceId,
@@ -244,7 +239,6 @@ func InviteUser(usr []string) {
 }
 
 // Search for users by name or email
-// TBD: To worker!
 func WhoisUsers(usr []string) {
 	name := strings.Join(usr, "%20")
 	AddStatusText(fmt.Sprintf("Searching for user: %v", strings.Join(usr, " ")))
