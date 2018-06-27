@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/rivo/tview"
+	"sync"
 	"time"
 )
 
@@ -10,6 +11,8 @@ type Maps struct {
 	SpaceTitleToSpace  map[string]*Space
 	MemberNameToMember map[string]*Member
 	MemberIdToMember   map[string]*Member
+	MemberMutex        *sync.Mutex
+	SpaceMutex         *sync.Mutex
 }
 
 type Channels struct {

@@ -25,29 +25,31 @@ func GetMeInfo() {
 }
 
 func GetMessagesForSpace(space_id string) {
-	f, _ := Request("GET", fmt.Sprintf("/messages?roomId=%s", space_id), nil)
-	space := maps.SpaceIdToSpace[space_id]
-	json.Unmarshal(f, &space.Messages)
-	sort.Sort(MessageSorter(space.Messages.Items))
+	if space, ok := maps.SpaceIdToSpace[space_id]; ok {
+		f, _ := Request("GET", fmt.Sprintf("/messages?roomId=%s", space_id), nil)
+		json.Unmarshal(f, &space.Messages)
+		sort.Sort(MessageSorter(space.Messages.Items))
+	}
 }
 
 func ShowMessages(space_title string) {
-	space := maps.SpaceTitleToSpace[space_title]
-	for _, m := range space.Messages.Items {
-		if m.PersonId == user.Info.Id {
-			AddOwnText(m.Text, user.Info.DisplayName, m.Created)
-		} else {
-			// Messages doesn't include DisplayNames, so find it in members.
-			found := false
-			for _, u := range space.Members.Items {
-				if strings.ToLower(u.PersonEmail) == strings.ToLower(m.PersonEmail) {
-					AddUserText(m.Text, u.PersonDisplayName, m.Created)
-					found = true
-					break
+	if space, ok := maps.SpaceTitleToSpace[space_title]; ok {
+		for _, m := range space.Messages.Items {
+			if m.PersonId == user.Info.Id {
+				AddOwnText(m.Text, user.Info.DisplayName, m.Created)
+			} else {
+				// Messages doesn't include DisplayNames, so find it in members.
+				found := false
+				for _, u := range space.Members.Items {
+					if strings.ToLower(u.PersonEmail) == strings.ToLower(m.PersonEmail) {
+						AddUserText(m.Text, u.PersonDisplayName, m.Created)
+						found = true
+						break
+					}
 				}
-			}
-			if !found {
-				AddUserText(m.Text, m.PersonEmail, m.Created)
+				if !found {
+					AddUserText(m.Text, m.PersonEmail, m.Created)
+				}
 			}
 		}
 	}
@@ -70,54 +72,63 @@ func GetMembersOfSpace(space_id string) {
 		}
 	}
 
-	space := maps.SpaceIdToSpace[space_id]
-	space.Members.Items = members
-	if user.ActiveSpaceId == space_id {
-		ChangeSpace(space.Title)
+	if space, ok := maps.SpaceIdToSpace[space_id]; ok {
+		space.Members.Items = members
+		maps.MemberMutex.Lock()
+		for i, m := range space.Members.Items {
+			maps.MemberIdToMember[m.PersonId] = &space.Members.Items[i]
+			maps.MemberNameToMember[m.PersonDisplayName] = &space.Members.Items[i]
+		}
+		maps.MemberMutex.Unlock()
+		if user.ActiveSpaceId == space_id {
+			ChangeSpace(space.Title)
+		}
 	}
 }
 
 func ChangeSpace(space string) {
-	SetInputLabelSpace(space)
-	ClearUsers()
-	UpdateStatusSpace(space)
-
-	s := maps.SpaceTitleToSpace[space]
-	user.ActiveSpaceId = s.Id
-	var ops []string
-	var monitor []string
-	var users []string
-	if len(s.Members.Items) == 0 {
-		AddUser("[red]Loading...")
-	} else {
-		for _, u := range s.Members.Items {
-			if u.IsModerator {
-				ops = append(ops, fmt.Sprintf("[%s]@[%s]%s", theme.ModeratorSign, theme.UserModerator, u.PersonDisplayName))
-			} else if u.IsMonitor {
-				monitor = append(monitor, fmt.Sprintf("[%s]+[%s]%s", theme.MonitorSign, theme.UserMonitor, u.PersonDisplayName))
-			} else {
-				//Check if it's a bot.
-				if strings.Contains(u.PersonEmail, "sparkbot.io") {
-					users = append(users, fmt.Sprintf("[%s][BOT[] %s", theme.UserBot, u.PersonDisplayName))
+	if s, ok := maps.SpaceTitleToSpace[space]; ok {
+		SetInputLabelSpace(space)
+		ClearUsers()
+		UpdateStatusSpace(space)
+		user.ActiveSpaceId = s.Id
+		var ops []string
+		var monitor []string
+		var users []string
+		if len(s.Members.Items) == 0 {
+			AddUser("[red]Loading...")
+		} else {
+			for _, u := range s.Members.Items {
+				if u.IsModerator {
+					ops = append(ops, fmt.Sprintf("[%s]@[%s]%s", theme.ModeratorSign, theme.UserModerator, u.PersonDisplayName))
+				} else if u.IsMonitor {
+					monitor = append(monitor, fmt.Sprintf("[%s]+[%s]%s", theme.MonitorSign, theme.UserMonitor, u.PersonDisplayName))
 				} else {
-					users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
+					//Check if it's a bot.
+					if strings.Contains(u.PersonEmail, "sparkbot.io") {
+						users = append(users, fmt.Sprintf("[%s][BOT[] %s", theme.UserBot, u.PersonDisplayName))
+					} else {
+						users = append(users, fmt.Sprintf("[%s]%s", theme.UserRegular, u.PersonDisplayName))
+					}
 				}
 			}
+			for _, o := range ops {
+				AddUser(o)
+			}
+			for _, o := range monitor {
+				AddUser(o)
+			}
+			for _, o := range users {
+				AddUser(o)
+			}
 		}
-		for _, o := range ops {
-			AddUser(o)
-		}
-		for _, o := range monitor {
-			AddUser(o)
-		}
-		for _, o := range users {
-			AddUser(o)
-		}
-	}
 
-	MarkActiveSpaceRead(space)
-	MarkSpaceRead(space)
-	ShowMessages(space)
+		MarkActiveSpaceRead(space)
+		MarkSpaceRead(space)
+		ShowMessages(space)
+	} else {
+		AddStatusText(fmt.Sprintf("Could not change to space %v just yet.", space))
+	}
 }
 
 func SendMessageToChannel(msg string) {
@@ -138,18 +149,19 @@ func GetAllSpaces() {
 	sort.Sort(SpaceSorter(spaces.Items))
 	count := 0
 	// Clear maps
+	maps.SpaceMutex.Lock()
 	maps.SpaceIdToSpace = make(map[string]*Space)
 	maps.SpaceTitleToSpace = make(map[string]*Space)
 	for i, m := range spaces.Items {
 		// Perform some mapping for faster lookup
 		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
 			count++
-			m.Title = fmt.Sprintf("%v (%v)", m.Title, count)
-			maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
+			spaces.Items[i].Title = fmt.Sprintf("%v (%v)", m.Title, count)
+			maps.SpaceTitleToSpace[spaces.Items[i].Title] = &spaces.Items[i]
 		} else {
-			maps.SpaceTitleToSpace[m.Title] = &spaces.Items[i]
+			maps.SpaceTitleToSpace[spaces.Items[i].Title] = &spaces.Items[i]
 		}
-		maps.SpaceIdToSpace[m.Id] = &spaces.Items[i]
+		maps.SpaceIdToSpace[spaces.Items[i].Id] = &spaces.Items[i]
 
 		if m.Type == "direct" {
 			AddPrivate(m.Title)
@@ -157,13 +169,14 @@ func GetAllSpaces() {
 			AddSpace(m.Title)
 		}
 
-		channels.Messages <- m.Id
-		channels.Members <- m.Id
+		channels.Messages <- spaces.Items[i].Id
+		channels.Members <- spaces.Items[i].Id
 
 		if user.ActiveSpaceId == m.Id {
 			ChangeSpace(m.Title)
 		}
 	}
+	maps.SpaceMutex.Unlock()
 }
 
 func LeaveCurrentRoom() {
@@ -197,17 +210,16 @@ func MessageUser(usr []string) {
 	name := str[posFirstAdjusted:posLast]
 
 	// Get person Id
-	person_id := maps.MemberNameToMember[name].PersonId
+	if m, ok := maps.MemberNameToMember[name]; ok {
+		message := strings.TrimLeft(str[posLast+1:], " ")
 
-	if person_id == "" {
+		data := map[string]interface{}{"toPersonId": m.PersonId, "text": message}
+		Request("POST", "/messages", data)
+	} else {
 		AddStatusText(fmt.Sprintf("[red]Did not find any user ID for '%s'", name))
 		return
 	}
 
-	message := strings.TrimLeft(str[posLast+1:], " ")
-
-	data := map[string]interface{}{"toPersonId": person_id, "text": message}
-	Request("POST", "/messages", data)
 }
 
 func CreateRoom(name []string) {

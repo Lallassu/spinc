@@ -257,10 +257,23 @@ func AddOwnText(msg, usr, ts string) {
 	user.CurrentRows += 1
 }
 
+func SortSpaces() {
+	sort.Sort(SpaceSorter(spaces.Items))
+	// Then update the mapping for new pointers
+	maps.SpaceMutex.Lock()
+	maps.SpaceIdToSpace = make(map[string]*Space)
+	maps.SpaceTitleToSpace = make(map[string]*Space)
+	for i, _ := range spaces.Items {
+		maps.SpaceTitleToSpace[spaces.Items[i].Title] = &spaces.Items[i]
+		maps.SpaceIdToSpace[spaces.Items[i].Id] = &spaces.Items[i]
+	}
+	maps.SpaceMutex.Unlock()
+}
+
 // Updates space list sorted on LastActivity
 func UpdateSpaceList() {
 	ClearSpaces()
-	sort.Sort(SpaceSorter(spaces.Items))
+	SortSpaces()
 	for _, m := range spaces.Items {
 		if m.Type == "group" {
 			// Check if it's in the active list to mark it unread/green
@@ -281,7 +294,7 @@ func UpdateSpaceList() {
 
 func UpdatePrivateList() {
 	ClearPrivate()
-	sort.Sort(SpaceSorter(spaces.Items))
+	SortSpaces()
 	for _, m := range spaces.Items {
 		if m.Type == "direct" {
 			is_active := false
