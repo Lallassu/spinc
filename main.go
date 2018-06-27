@@ -52,12 +52,10 @@ var win = Windows{
 }
 
 var maps = Maps{
-	SpaceIdToSpace:     make(map[string]*Space),
-	SpaceTitleToSpace:  make(map[string]*Space),
-	MemberNameToMember: make(map[string]*Member),
-	MemberIdToMember:   make(map[string]*Member),
-	MemberMutex:        &sync.Mutex{},
-	SpaceMutex:         &sync.Mutex{},
+	SpaceIdToSpace:     &sync.Map{},
+	SpaceTitleToSpace:  &sync.Map{},
+	MemberNameToMember: &sync.Map{},
+	MemberIdToMember:   &sync.Map{},
 }
 
 func Help() {
@@ -196,11 +194,6 @@ func main() {
 					go DeleteCurrentSpace()
 				case "debug":
 					AddStatusText(fmt.Sprintf("Workers: %v", channels.workers))
-					AddStatusText(fmt.Sprintf("Spaces: %v", len(maps.SpaceIdToSpace)))
-					AddStatusText(fmt.Sprintf("Members: %v", len(maps.MemberIdToMember)))
-					for k, v := range maps.SpaceTitleToSpace {
-						AddStatusText(fmt.Sprintf("[orange]%v => %v (%v)", k, v.Title, v.Id))
-					}
 				default:
 					AddStatusText(fmt.Sprintf("[red]No such command '%s'.", text[1:]))
 				}

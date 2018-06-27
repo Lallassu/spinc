@@ -74,7 +74,8 @@ func HandleWhMessage(webhook WebHook) {
 				}
 			} else {
 				name := message.PersonEmail
-				if member, ok := maps.MemberIdToMember[message.PersonId]; ok {
+				if m, ok := maps.MemberIdToMember.Load(interface{}(message.PersonId)); ok {
+					member := m.(*Member)
 					name = member.PersonDisplayName
 				}
 
@@ -89,7 +90,8 @@ func HandleWhMessage(webhook WebHook) {
 			}
 		}
 		// Add message to space message list
-		if space, ok := maps.SpaceIdToSpace[webhook.Data.RoomId]; ok {
+		if s, ok := maps.SpaceIdToSpace.Load(interface{}(webhook.Data.RoomId)); ok {
+			space := s.(*Space)
 			// Update last Activity BEFORE MarkUnread
 			unread_space := ""
 			space.LastActivity = message.Created
@@ -104,7 +106,8 @@ func HandleWhMessage(webhook WebHook) {
 			if is_mentioned {
 				AddStatusText(fmt.Sprintf("[purple]You were mentioned in channel %s", space.Title))
 				if config.ShowAlerts {
-					if member, ok := maps.MemberIdToMember[message.PersonId]; ok {
+					if m, ok := maps.MemberIdToMember.Load(interface{}(message.PersonId)); ok {
+						member := m.(*Member)
 						beeep.Notify(fmt.Sprintf("Spinc - %v", space.Title), fmt.Sprintf("%v mentioned your name!", member.PersonDisplayName), "logo.png")
 					}
 				}
@@ -117,11 +120,13 @@ func HandleWhMessage(webhook WebHook) {
 		}
 	} else if webhook.Event == "deleted" {
 		name := "unknown"
-		if val, ok := maps.MemberIdToMember[webhook.Data.PersonId]; ok {
-			name = val.PersonDisplayName
+		if m, ok := maps.MemberIdToMember.Load(interface{}(webhook.Data.PersonId)); ok {
+			member := m.(*Member)
+			name = member.PersonDisplayName
 		}
 
-		if space, ok := maps.SpaceIdToSpace[webhook.Data.RoomId]; ok {
+		if s, ok := maps.SpaceIdToSpace.Load(interface{}(webhook.Data.RoomId)); ok {
+			space := s.(*Space)
 			msg := ""
 			for _, m := range space.Messages.Items {
 				if m.Id == webhook.Data.Id {
@@ -138,7 +143,8 @@ func HandleWhRoom(webhook WebHook) {
 		ClearPrivate()
 		ClearSpaces()
 		GetAllSpaces()
-		if space, ok := maps.SpaceIdToSpace[webhook.Data.RoomId]; ok {
+		if s, ok := maps.SpaceIdToSpace.Load(interface{}(webhook.Data.RoomId)); ok {
+			space := s.(*Space)
 			if space.Type == "group" {
 				AddStatusText(fmt.Sprintf("New space created: %s", webhook.Data.PersonEmail))
 			} else if space.Type == "direct" {
@@ -151,7 +157,8 @@ func HandleWhRoom(webhook WebHook) {
 }
 
 func HandleWhMember(webhook WebHook) {
-	if space, ok := maps.SpaceIdToSpace[webhook.Data.RoomId]; ok {
+	if s, ok := maps.SpaceIdToSpace.Load(interface{}(webhook.Data.RoomId)); ok {
+		space := s.(*Space)
 		if webhook.Event == "created" {
 			AddStatusText(fmt.Sprintf("[aqua]%s [red]joined space [aqua]%s", webhook.Data.PersonDisplayName, space.Title))
 			if webhook.Data.PersonId == user.Info.Id {

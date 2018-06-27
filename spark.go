@@ -6,6 +6,7 @@ import (
 	"github.com/go-resty/resty"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -25,7 +26,8 @@ func GetMeInfo() {
 }
 
 func GetMessagesForSpace(space_id string) {
-	if space, ok := maps.SpaceIdToSpace[space_id]; ok {
+	if s, ok := maps.SpaceIdToSpace.Load(interface{}(space_id)); ok {
+		space := s.(*Space)
 		f, _ := Request("GET", fmt.Sprintf("/messages?roomId=%s", space_id), nil)
 		json.Unmarshal(f, &space.Messages)
 		sort.Sort(MessageSorter(space.Messages.Items))
@@ -33,7 +35,8 @@ func GetMessagesForSpace(space_id string) {
 }
 
 func ShowMessages(space_title string) {
-	if space, ok := maps.SpaceTitleToSpace[space_title]; ok {
+	if s, ok := maps.SpaceTitleToSpace.Load(interface{}(space_title)); ok {
+		space := s.(*Space)
 		for _, m := range space.Messages.Items {
 			if m.PersonId == user.Info.Id {
 				AddOwnText(m.Text, user.Info.DisplayName, m.Created)
@@ -72,14 +75,13 @@ func GetMembersOfSpace(space_id string) {
 		}
 	}
 
-	if space, ok := maps.SpaceIdToSpace[space_id]; ok {
+	if s, ok := maps.SpaceIdToSpace.Load(interface{}(space_id)); ok {
+		space := s.(*Space)
 		space.Members.Items = members
-		maps.MemberMutex.Lock()
 		for i, m := range space.Members.Items {
-			maps.MemberIdToMember[m.PersonId] = &space.Members.Items[i]
-			maps.MemberNameToMember[m.PersonDisplayName] = &space.Members.Items[i]
+			maps.MemberIdToMember.Store(interface{}(m.PersonId), interface{}(&space.Members.Items[i]))
+			maps.MemberNameToMember.Store(interface{}(m.PersonDisplayName), interface{}(&space.Members.Items[i]))
 		}
-		maps.MemberMutex.Unlock()
 		if user.ActiveSpaceId == space_id {
 			ChangeSpace(space.Title)
 		}
@@ -87,7 +89,8 @@ func GetMembersOfSpace(space_id string) {
 }
 
 func ChangeSpace(space string) {
-	if s, ok := maps.SpaceTitleToSpace[space]; ok {
+	if sm, ok := maps.SpaceTitleToSpace.Load(interface{}(space)); ok {
+		s := sm.(*Space)
 		SetInputLabelSpace(space)
 		ClearUsers()
 		UpdateStatusSpace(space)
@@ -149,19 +152,16 @@ func GetAllSpaces() {
 	sort.Sort(SpaceSorter(spaces.Items))
 	count := 0
 	// Clear maps
-	maps.SpaceMutex.Lock()
-	maps.SpaceIdToSpace = make(map[string]*Space)
-	maps.SpaceTitleToSpace = make(map[string]*Space)
+	maps.SpaceIdToSpace = &sync.Map{}
+	maps.SpaceTitleToSpace = &sync.Map{}
 	for i, m := range spaces.Items {
 		// Perform some mapping for faster lookup
 		if m.Title == "Empty Title" || m.Title == "DEPRACATED" {
 			count++
 			spaces.Items[i].Title = fmt.Sprintf("%v (%v)", m.Title, count)
-			maps.SpaceTitleToSpace[spaces.Items[i].Title] = &spaces.Items[i]
-		} else {
-			maps.SpaceTitleToSpace[spaces.Items[i].Title] = &spaces.Items[i]
 		}
-		maps.SpaceIdToSpace[spaces.Items[i].Id] = &spaces.Items[i]
+		maps.SpaceTitleToSpace.Store(interface{}(spaces.Items[i].Title), interface{}(&spaces.Items[i]))
+		maps.SpaceIdToSpace.Store(interface{}(spaces.Items[i].Id), interface{}(&spaces.Items[i]))
 
 		if m.Type == "direct" {
 			AddPrivate(m.Title)
@@ -176,7 +176,6 @@ func GetAllSpaces() {
 			ChangeSpace(m.Title)
 		}
 	}
-	maps.SpaceMutex.Unlock()
 }
 
 func LeaveCurrentRoom() {
@@ -210,7 +209,8 @@ func MessageUser(usr []string) {
 	name := str[posFirstAdjusted:posLast]
 
 	// Get person Id
-	if m, ok := maps.MemberNameToMember[name]; ok {
+	if ms, ok := maps.MemberNameToMember.Load(interface{}(name)); ok {
+		m := ms.(*Member)
 		message := strings.TrimLeft(str[posLast+1:], " ")
 
 		data := map[string]interface{}{"toPersonId": m.PersonId, "text": message}

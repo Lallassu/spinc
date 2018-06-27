@@ -7,12 +7,10 @@ import (
 )
 
 type Maps struct {
-	SpaceIdToSpace     map[string]*Space
-	SpaceTitleToSpace  map[string]*Space
-	MemberNameToMember map[string]*Member
-	MemberIdToMember   map[string]*Member
-	MemberMutex        *sync.Mutex
-	SpaceMutex         *sync.Mutex
+	SpaceIdToSpace     *sync.Map
+	SpaceTitleToSpace  *sync.Map
+	MemberNameToMember *sync.Map
+	MemberIdToMember   *sync.Map
 }
 
 type Channels struct {

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -260,14 +261,12 @@ func AddOwnText(msg, usr, ts string) {
 func SortSpaces() {
 	sort.Sort(SpaceSorter(spaces.Items))
 	// Then update the mapping for new pointers
-	maps.SpaceMutex.Lock()
-	maps.SpaceIdToSpace = make(map[string]*Space)
-	maps.SpaceTitleToSpace = make(map[string]*Space)
+	maps.SpaceIdToSpace = &sync.Map{}
+	maps.SpaceTitleToSpace = &sync.Map{}
 	for i, _ := range spaces.Items {
-		maps.SpaceTitleToSpace[spaces.Items[i].Title] = &spaces.Items[i]
-		maps.SpaceIdToSpace[spaces.Items[i].Id] = &spaces.Items[i]
+		maps.SpaceTitleToSpace.Store(interface{}(spaces.Items[i].Title), interface{}(&spaces.Items[i]))
+		maps.SpaceIdToSpace.Store(interface{}(spaces.Items[i].Id), interface{}(&spaces.Items[i]))
 	}
-	maps.SpaceMutex.Unlock()
 }
 
 // Updates space list sorted on LastActivity
