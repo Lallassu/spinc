@@ -61,7 +61,7 @@ func ShowMessages(space_title string) {
 func GetMembersOfSpace(space_id string) {
 	members := []Member{}
 	link := "_"
-	req := fmt.Sprintf("/memberships?roomId=%s", space_id)
+	req := fmt.Sprintf("/memberships?roomId=%s&max=500", space_id)
 	for link != "" {
 		f := []byte{}
 		f, link = Request("GET", req, nil)
@@ -130,7 +130,14 @@ func ChangeSpace(space string) {
 		MarkSpaceRead(space)
 		ShowMessages(space)
 	} else {
-		AddStatusText(fmt.Sprintf("Could not change to space %v just yet.", space))
+		if space != "status" {
+			AddStatusText(fmt.Sprintf("Could not change to space %v just yet.", space))
+		} else {
+			SetInputLabelSpace(space)
+			ClearUsers()
+			UpdateStatusSpace(space)
+			ShowMessages(space)
+		}
 	}
 }
 

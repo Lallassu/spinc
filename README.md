@@ -1,7 +1,7 @@
 # SPINC - Spark In Console
 This is a Cisco Spark (now called WebEx) chat client for use in console. Written in GO that works in MacOS and Linux.
 
-This client uses about 15-30MB RAM compared to the official client that uses 500MB - 1000MB RAM.
+This client uses about 15MB RAM compared to the official client that uses 500MB - 1000MB RAM.
 However, this client currently only support chats (not file-share, video-chat etc).
 
 ## Screenshots
@@ -37,9 +37,6 @@ Linux, Unix (requires 'xclip' or 'xsel' command to be installed) in order to use
 - Default theme is a irssi look. Themes are read from "spinc.theme" file.
 - Theme file is configured in spinc.conf
 - Available colors: https://github.com/gdamore/tcell/blob/master/color.go (and pretty much all hexadecimal colors)
-
-## Known Issues
-- Not all colors are possible to configure yet.
 
 ## Todo
 - Logging to file

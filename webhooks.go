@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gen2brain/beeep"
 	"net/http"
+	"time"
 )
 
 // Own written messages from client, to skip delay between sending and receiving
@@ -54,41 +55,6 @@ func HandleWhMessage(webhook WebHook) {
 			}
 		}
 
-		if user.ActiveSpaceId == webhook.Data.RoomId {
-			if user.Info.Id == webhook.Data.PersonId {
-				msg_found := false
-				for i, o := range own {
-					if o.SpaceId == webhook.Data.RoomId && o.Text == message.Text {
-						msg_found = true
-						own = append(own[i:], own[i+1:]...)
-						break
-					}
-				}
-				if !msg_found {
-					AddOwnText(message.Text, user.Info.DisplayName, message.Created)
-					if len(webhook.Data.Files) > 0 {
-						for _, f := range webhook.Data.Files {
-							AddOwnText(f, user.Info.DisplayName, message.Created)
-						}
-					}
-				}
-			} else {
-				name := message.PersonEmail
-				if m, ok := maps.MemberIdToMember.Load(interface{}(message.PersonId)); ok {
-					member := m.(*Member)
-					name = member.PersonDisplayName
-				}
-
-				AddUserText(message.Text, name, message.Created)
-
-				// If any files were attached (just print them)
-				if len(webhook.Data.Files) > 0 {
-					for _, f := range webhook.Data.Files {
-						AddUserText(f, name, message.Created)
-					}
-				}
-			}
-		}
 		// Add message to space message list
 		if s, ok := maps.SpaceIdToSpace.Load(interface{}(webhook.Data.RoomId)); ok {
 			space := s.(*Space)
@@ -112,10 +78,67 @@ func HandleWhMessage(webhook WebHook) {
 					}
 				}
 			}
+
+			// Get diff since last message
+			last_msg := space.Messages.Items[len(space.Messages.Items)-1]
+			last_time, _ := time.Parse(time.RFC3339, last_msg.Created)
+			new_time, _ := time.Parse(time.RFC3339, message.Created)
+			diff_time := last_time.Unix() - new_time.Unix()
+
+			// Check if message ID already exists in the message list.
+			for _, m := range space.Messages.Items {
+				if m.Id == message.Id {
+					// Skip! We already handled this message.
+					return
+				}
+			}
+
 			space.Messages.Items = append(space.Messages.Items, message)
+
 			// Must mark last, it will sort the space list!
 			if unread_space != "" {
 				MarkSpaceUnread(space.Title)
+			}
+			if user.ActiveSpaceId == webhook.Data.RoomId {
+				// If the message time diff, then we need to redraw. Else we can just add it to the chat window.
+				if diff_time > 0 {
+					ClearChat()
+					ShowMessages(space.Title)
+				} else {
+					if user.Info.Id == webhook.Data.PersonId {
+						msg_found := false
+						for i, o := range own {
+							if o.SpaceId == webhook.Data.RoomId && o.Text == message.Text {
+								msg_found = true
+								own = append(own[i:], own[i+1:]...)
+								break
+							}
+						}
+						if !msg_found {
+							AddOwnText(message.Text, user.Info.DisplayName, message.Created)
+							if len(webhook.Data.Files) > 0 {
+								for _, f := range webhook.Data.Files {
+									AddOwnText(f, user.Info.DisplayName, message.Created)
+								}
+							}
+						}
+					} else {
+						name := message.PersonEmail
+						if m, ok := maps.MemberIdToMember.Load(interface{}(message.PersonId)); ok {
+							member := m.(*Member)
+							name = member.PersonDisplayName
+						}
+
+						AddUserText(message.Text, name, message.Created)
+
+						// If any files were attached (just print them)
+						if len(webhook.Data.Files) > 0 {
+							for _, f := range webhook.Data.Files {
+								AddUserText(f, name, message.Created)
+							}
+						}
+					}
+				}
 			}
 		}
 	} else if webhook.Event == "deleted" {
