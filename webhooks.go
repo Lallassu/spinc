@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gen2brain/beeep"
 	"net/http"
+	"sort"
 	"time"
 )
 
@@ -94,6 +95,7 @@ func HandleWhMessage(webhook WebHook) {
 			}
 
 			space.Messages.Items = append(space.Messages.Items, message)
+			sort.Sort(MessageSorter(space.Messages.Items))
 
 			// Must mark last, it will sort the space list!
 			if unread_space != "" {
@@ -181,12 +183,14 @@ func HandleWhRoom(webhook WebHook) {
 
 func HandleWhMember(webhook WebHook) {
 	if s, ok := maps.SpaceIdToSpace.Load(interface{}(webhook.Data.RoomId)); ok {
+		updated := false
 		space := s.(*Space)
 		if webhook.Event == "created" {
 			AddStatusText(fmt.Sprintf("[aqua]%s [red]joined space [aqua]%s", webhook.Data.PersonDisplayName, space.Title))
 			if webhook.Data.PersonId == user.Info.Id {
 				// TBD: Only get the created room and add it to space list
 				GetAllSpaces()
+				updated = true
 			}
 		} else if webhook.Event == "updated" {
 			// TBD: Needed?
@@ -196,6 +200,7 @@ func HandleWhMember(webhook WebHook) {
 			if webhook.Data.PersonId == user.Info.Id {
 				// TBD: Only get the created room and remove it from spaces
 				GetAllSpaces()
+				updated = true
 				// if current space, clear users
 				if webhook.Data.RoomId == user.ActiveSpaceId {
 					ChangeToStatusSpace()
@@ -203,8 +208,9 @@ func HandleWhMember(webhook WebHook) {
 			}
 		}
 		// Might be a invite or newly created room that didn't exist before.
-		AddStatusText("New room invite/creation.")
-		GetAllSpaces()
+		if !updated {
+			GetAllSpaces()
+		}
 	}
 
 }
